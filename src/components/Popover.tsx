@@ -64,7 +64,7 @@ export function Popover({
         aria-label={title}
         style={at ? { left: at.left, top: at.top, transform: 'none' } : undefined}
         className={
-          'fixed left-1/2 top-20 z-[80] flex max-h-[84vh] -translate-x-1/2 flex-col gap-2.5 ' +
+          'pops fixed left-1/2 top-20 z-[80] flex max-h-[84vh] -translate-x-1/2 flex-col gap-2.5 ' +
           'overflow-auto rounded-2xl border border-line bg-panel p-3.5 shadow-[var(--shadow)] ' +
           (wide ? 'w-[min(460px,94vw)]' : 'w-[min(340px,94vw)]')
         }

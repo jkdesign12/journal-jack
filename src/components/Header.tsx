@@ -147,7 +147,7 @@ export function Header({
         </button>
 
         <button className={button} onClick={onOpenSync}>
-          Sync
+          Sync{busy ? <span className="busy-dot" aria-hidden /> : null}
         </button>
 
         {/* Syncing without an account would do nothing, so it only appears

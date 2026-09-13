@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Tile } from './Tile';
 import type { Block } from '@/lib/journal/types';
@@ -39,9 +39,13 @@ describe('a tile', () => {
     expect(screen.getByText('1997')).toBeInTheDocument();
   });
 
-  it('falls back to a coloured letter when there is no artwork', () => {
-    setup(block({ src: '' }));
-    expect(screen.getByText('P')).toBeInTheDocument();
+  /* The original prints a typeset card for an import with no poster, not a
+     letter — see Tile.card.test.tsx, which covers it properly. */
+  it('does not leave an import with no artwork as an empty tile', async () => {
+    const { container } = render(
+      <Tile block={block({ src: '' })} item={item()} metrics={metrics} onOpen={vi.fn()} />,
+    );
+    await waitFor(() => expect(container.querySelector('.poster')).toBeTruthy());
   });
 
   it('labels itself with its tags, not its source, when it has any', () => {

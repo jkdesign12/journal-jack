@@ -44,9 +44,14 @@ export function Calendar({
       </div>
 
       <div className="grid grid-cols-2 gap-2 min-[761px]:grid-cols-7">
-        {/* the blanks before the first only make sense in a seven-wide month */}
+        {/* Days belonging to the neighbouring month are not real days here,
+            but a blank gap reads as a mistake — so they are drawn, faintly.
+            Only in a seven-wide month; two columns has no shape to keep. */}
         {Array.from({ length: firstDay }, (_, i) => (
-          <div key={`pad-${i}`} className="hidden min-[761px]:block" />
+          <div
+            key={`pad-${i}`}
+            className="day-pad hidden min-h-[104px] rounded-xl border border-dashed border-line opacity-30 min-[761px]:block"
+          />
         ))}
 
         {Array.from({ length: days }, (_, i) => {
@@ -62,7 +67,7 @@ export function Calendar({
               className={
                 'min-h-[104px] rounded-xl border border-[var(--ink)] bg-[var(--ink)] p-2 ' +
                 (isToday ? 'outline outline-2 -outline-offset-2 outline-accent ' : '') +
-                (over === day ? 'brightness-90 ' : '')
+                (over === day ? 'drag-over border-accent bg-[color-mix(in_srgb,var(--accent)_45%,var(--ink))] ' : '')
               }
               onDragOver={(e) => {
                 e.preventDefault();

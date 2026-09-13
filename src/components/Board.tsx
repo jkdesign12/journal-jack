@@ -21,6 +21,9 @@ export function Board({
   onRefuse,
   empty,
   renderWidget,
+  selected,
+  onSelect,
+  onMeasured,
 }: {
   blocks: Block[];
   manual: boolean;
@@ -31,11 +34,18 @@ export function Board({
   onRefuse: (message: string) => void;
   empty?: React.ReactNode;
   renderWidget?: (block: Block) => React.ReactNode;
+  selected?: string | null;
+  onSelect?: (id: string) => void;
+  onMeasured?: (id: string, ratio: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [touched, setTouched] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  /* Where the carried tile will land, and where it is under the pointer. The
+     two differ on purpose: the tile follows your hand, the ghost snaps. */
+  const [ghost, setGhost] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [held, setHeld] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const node = ref.current;
@@ -80,17 +90,22 @@ export function Board({
     setDragging(block.id);
 
     const move = (ev: PointerEvent) => {
-      const to = dropAt(ev.clientX - board.left - offX, ev.clientY - board.top - offY, metrics, item.w);
-      item.gx = to.gx;
-      item.gy = to.gy;
-      setTouched(block.id);
-      onChange();
+      const x = ev.clientX - board.left - offX;
+      const y = ev.clientY - board.top - offY;
+      const to = dropAt(x, y, metrics, item.w);
+
+      setHeld({ x, y });
+      setGhost({ x: to.gx * metrics.pitch, y: to.gy * metrics.pitch, w: item.w, h: item.h });
     };
 
     const done = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', done);
       setDragging(null);
+      setGhost(null);
+      setHeld(null);
+      setTouched(block.id);
+
       const to = dropAt(ev.clientX - board.left - offX, ev.clientY - board.top - offY, metrics, item.w);
       commitMove(placed.items, item, to, byId);
       onChange();
@@ -142,9 +157,31 @@ export function Board({
   return (
     <div
       ref={ref}
-      className="board"
-      style={{ height: placed && metrics ? placed.rows * metrics.pitch - metrics.gap : undefined }}
+      className={'board' + (dragging ? ' is-placing' : '')}
+      style={
+        {
+          height: placed && metrics ? placed.rows * metrics.pitch - metrics.gap : undefined,
+          '--colw': metrics ? metrics.unit + 'px' : undefined,
+          '--pitch': metrics ? metrics.pitch + 'px' : undefined,
+        } as React.CSSProperties
+      }
     >
+      {/* the lanes a carried tile can land in, drawn from the same numbers the
+          layout just used, so the squares line up with where tiles really go */}
+      <div className="grid-guides" />
+
+      {ghost && metrics ? (
+        <div
+          className="drop-ghost"
+          style={{
+            left: ghost.x,
+            top: ghost.y,
+            width: metrics.px(ghost.w),
+            height: metrics.px(ghost.h),
+          }}
+        />
+      ) : null}
+
       {placed && metrics
         ? placed.items.map((item) => {
             const block = byId.get(item.id);
@@ -156,6 +193,10 @@ export function Board({
                 item={item}
                 metrics={metrics}
                 dragging={dragging === item.id}
+                held={dragging === item.id ? held : null}
+                selected={selected === item.id}
+                onSelect={onSelect}
+                onMeasured={onMeasured}
                 onOpen={onOpen}
                 onRemove={onRemove}
                 onCycleSize={onCycleSize}

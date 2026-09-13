@@ -70,7 +70,7 @@ export function unitsOf(b: Block, m: Metrics): { w: number; h: number } {
   const w = Math.min(m.units, Math.max(MIN_UNITS, custom || WIDTH_UNITS[sizeOf(b)] || 4));
   const h = b.uh
     ? Math.max(MIN_UNITS, b.uh)
-    : Math.max(1, Math.round((m.px(w) * ratioOf(b.ratio) + m.gap) / m.pitch));
+    : Math.max(1, Math.round((m.px(w) * ratioOf(guessRatio(b)) + m.gap) / m.pitch));
   return { w, h };
 }
 
@@ -200,4 +200,26 @@ export function layout(
   let lowest = 0;
   for (const it of items) lowest = Math.max(lowest, it.gy + it.h);
   return { items, rows: lowest + HEADROOM };
+}
+
+/* Height ÷ width for a block before its image has loaded. A film poster is
+   2:3, an album cover is square, and each widget has a shape it wants — so a
+   board can be laid out correctly on the first paint rather than jumping about
+   as pictures arrive. A measured ratio always wins over a guess. */
+const RATIOS: Record<string, number> = {
+  letterboxd: 3 / 2,
+  heading: 0.42,
+  quote: 0.75,
+  note: 1,
+  link: 0.62,
+  checklist: 1.35,
+  palette: 0.8,
+  stats: 1,
+};
+
+export function guessRatio(b: Pick<Block, 'kind' | 'source' | 'ratio'>): number {
+  if (b.ratio) return b.ratio;
+  if (b.kind === 'media') return RATIOS[b.source ?? ''] ?? 1; // album art is square
+  if (b.kind === 'photo') return 1;
+  return RATIOS[b.kind] ?? 1;
 }
