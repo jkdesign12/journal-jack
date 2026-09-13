@@ -1,19 +1,34 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useJournal, useJournalReady } from '@/lib/client/useJournal';
+import { Account } from '@/lib/client/account';
+import { describeSync, syncNow } from '@/lib/client/sync';
 import { Header } from './Header';
 import { Board } from './Board';
 import { MonthPicker } from './MonthPicker';
+import { AccountPanel } from './AccountPanel';
+import { Inspector } from './Inspector';
+import { Toasts, toast } from './Toasts';
 import { monthStyle } from '@/lib/journal/colours';
-import { effectiveSort, everyBlock, journalSpan, orderedBlocks, type SortMode } from '@/lib/journal/sort';
+import {
+  effectiveSort,
+  everyBlock,
+  journalSpan,
+  orderedBlocks,
+  type SortMode,
+} from '@/lib/journal/sort';
 import { hiddenTagSet, tagVisible } from '@/lib/journal/tags';
 import { shiftMonth } from '@/lib/journal/dates';
+
+type Panel = 'months' | 'account' | null;
 
 export function Journal() {
   const ready = useJournalReady();
   const { store, version } = useJournal();
-  const [months, setMonths] = useState(false);
+  const [panel, setPanel] = useState<Panel>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const { doc, view } = store;
 
@@ -32,6 +47,25 @@ export function Journal() {
       else root.style.removeProperty(key);
     }
   }, [ready, doc, view.cursor, view.theme, version]);
+
+  /* Signing in pulls the account's copy and folds it in, which is the whole
+     point of having one: a journal made on another device shows up here. */
+  const runSync = useCallback(async () => {
+    setBusy(true);
+    try {
+      for (const line of describeSync(await syncNow())) toast(line.text, line.bad);
+    } catch (e) {
+      toast('Sync failed: ' + (e as Error).message, true);
+    }
+    setBusy(false);
+  }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    void Account.init().then((user) => {
+      if (user) void runSync();
+    });
+  }, [ready, runSync]);
 
   const blocks = useMemo(() => {
     if (!ready) return [];
@@ -54,6 +88,7 @@ export function Journal() {
     );
   }
 
+  const open = openId ? store.find(openId) : undefined;
   const manual = effectiveSort(view.sort as SortMode, view.all) === 'manual';
 
   return (
@@ -61,6 +96,8 @@ export function Journal() {
       <Header
         view={view}
         span={journalSpan(doc)}
+        signedIn={!!Account.user}
+        busy={busy}
         onShift={(delta) => {
           // an arrow means "a month", so it steps out of the everything view
           if (view.all) store.setView({ all: false });
@@ -72,22 +109,53 @@ export function Journal() {
           else store.setView({ view: mode });
         }}
         onSort={(sort) => store.setView({ sort })}
-        onOpenMonths={() => setMonths((open) => !open)}
+        onOpenMonths={() => setPanel(panel === 'months' ? null : 'months')}
+        onOpenAccount={() => setPanel(panel === 'account' ? null : 'account')}
+        onSync={runSync}
       />
 
-      {months ? (
+      {panel === 'months' ? (
         <MonthPicker
           doc={doc}
           view={view}
           onPick={(cursor) => {
             store.setView({ cursor, all: false });
-            setMonths(false);
+            setPanel(null);
           }}
           onAll={() => {
             store.setView({ all: true, view: 'grid' });
-            setMonths(false);
+            setPanel(null);
           }}
-          onClose={() => setMonths(false)}
+          onClose={() => setPanel(null)}
+        />
+      ) : null}
+
+      {panel === 'account' ? (
+        <AccountPanel
+          busy={busy}
+          onClose={() => setPanel(null)}
+          onSignedIn={() => {
+            setPanel(null);
+            void runSync();
+          }}
+          onSignedOut={() => {
+            setPanel(null);
+            toast('Signed out. Your journal is still here on this device.');
+          }}
+          onSync={() => void runSync()}
+        />
+      ) : null}
+
+      {open ? (
+        <Inspector
+          block={open}
+          onClose={() => setOpenId(null)}
+          onChange={() => store.save()}
+          onRemove={(id) => {
+            store.remove(id);
+            setOpenId(null);
+          }}
+          onMoved={(message) => toast(message)}
         />
       ) : null}
 
@@ -95,22 +163,23 @@ export function Journal() {
         <Board
           blocks={blocks}
           manual={manual}
-          onOpen={() => {
-            /* the details panel is the next thing to land */
-          }}
+          onOpen={setOpenId}
           empty={
             <div className="max-w-sm text-center">
               <b className="mb-1 block text-[15px]">
                 {view.all ? 'Nothing in the journal yet' : 'Nothing here yet'}
               </b>
               <span className="text-[12.5px] text-ink-3">
-                Drop photos anywhere, add a widget, or pull a month from Letterboxd, AniList or
-                Last.fm with Sync.
+                {Account.user
+                  ? 'Nothing in this month. Try another, or All.'
+                  : 'Sign in to pull the journal from your account, or drop photos here.'}
               </span>
             </div>
           }
         />
       </main>
+
+      <Toasts />
     </>
   );
 }

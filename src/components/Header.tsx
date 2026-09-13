@@ -9,7 +9,7 @@ const button =
   'enabled:hover:border-accent enabled:hover:text-accent';
 
 /** Everything the old app had here that this one has not brought back yet. */
-export const NOT_YET = ['＋ Media', 'Widget', 'Sync', 'Sign in'] as const;
+export const NOT_YET = ['＋ Media', 'Widget'] as const;
 
 export function Header({
   view,
@@ -18,6 +18,10 @@ export function Header({
   onView,
   onSort,
   onOpenMonths,
+  onOpenAccount,
+  onSync,
+  signedIn,
+  busy,
 }: {
   view: ViewState;
   span: { first?: string; last?: string };
@@ -25,6 +29,10 @@ export function Header({
   onView: (mode: 'grid' | 'calendar') => void;
   onSort: (mode: SortMode) => void;
   onOpenMonths: () => void;
+  onOpenAccount: () => void;
+  onSync: () => void;
+  signedIn: boolean;
+  busy: boolean;
 }) {
   const [year, month] = view.cursor.split('-').map(Number);
   const title = view.all ? 'Everything' : MONTHS[month - 1];
@@ -101,7 +109,7 @@ export function Header({
           ))}
         </select>
 
-        {/* Not ported yet. A button that looks clickable and does nothing is
+        {/* Still to come. A button that looks clickable and does nothing is
             worse than one that admits it, so these say so rather than swallow
             the click — and a test holds them to it, which will fail the day one
             is wired up and left like this. */}
@@ -115,6 +123,14 @@ export function Header({
             {label}
           </button>
         ))}
+
+        <button className={button} onClick={onSync} disabled={!signedIn || busy}>
+          {busy ? 'Syncing…' : 'Sync'}
+        </button>
+
+        <button className={button} onClick={onOpenAccount}>
+          {signedIn ? 'Account' : 'Sign in'}
+        </button>
       </div>
     </header>
   );

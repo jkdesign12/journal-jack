@@ -9,11 +9,12 @@
  */
 
 import { DB } from './db';
+import { forgetBlobUrl } from './media';
 import { Account } from './account';
 import { defaultView, loadView, saveView, type ViewState } from './view';
-import { Stamper, mergeDocs } from '@/lib/journal/merge';
+import { Stamper, mergeDocs, tombstone } from '@/lib/journal/merge';
 import { ensureShape } from '@/lib/journal/shape';
-import { emptyDoc, type JournalDoc, type Month, blankMonth } from '@/lib/journal/types';
+import { emptyDoc, type Block, type JournalDoc, type Month, blankMonth } from '@/lib/journal/types';
 
 type Listener = () => void;
 
@@ -148,6 +149,80 @@ export class JournalStore {
     this.stamper.reset(this.doc);
     await DB.saveState(this.doc);
     this.emit();
+  }
+
+  /**
+   * Which month actually holds a block. In the everything view a tile on screen
+   * can belong to any month, and editing it has to reach that one rather than
+   * whichever month the cursor happens to be parked on.
+   */
+  monthOf(id: string): [string, Month] {
+    for (const [key, m] of Object.entries(this.doc.months)) {
+      if ((m.blocks ?? []).some((b) => b.id === id)) return [key, m];
+    }
+    return [this.view.cursor, this.month()];
+  }
+
+  find(id: string): Block | undefined {
+    for (const m of Object.values(this.doc.months)) {
+      const found = (m.blocks ?? []).find((b) => b.id === id);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  add(blocks: Block[], key = this.view.cursor): void {
+    this.month(key).blocks.push(...blocks);
+    this.save();
+  }
+
+  remove(id: string): void {
+    const [, m] = this.monthOf(id);
+    const i = m.blocks.findIndex((b) => b.id === id);
+    if (i < 0) return;
+
+    const [block] = m.blocks.splice(i, 1);
+    tombstone(m, id); // or the next merge hands it straight back
+    if (block.blobId) {
+      void DB.delBlob(block.blobId);
+      forgetBlobUrl(block.blobId);
+    }
+    this.save();
+  }
+
+  /**
+   * Dating a block is also filing it. A photo uploaded in September but taken
+   * in June belongs in June, so a date outside the month it sits in moves it
+   * there. Returns the month it went to, if it moved.
+   */
+  setBlockDate(b: Block, value: string): string | null {
+    const [homeKey, holder] = this.monthOf(b.id);
+
+    if (!value) {
+      b.date = null;
+      b.day = null;
+      this.save();
+      return null;
+    }
+
+    const targetKey = value.slice(0, 7);
+    b.date = value;
+    b.day = Number(value.slice(8, 10));
+
+    if (targetKey === homeKey) {
+      this.save();
+      return null;
+    }
+
+    const i = holder.blocks.indexOf(b);
+    if (i > -1) holder.blocks.splice(i, 1);
+    tombstone(holder, b.id); // gone from here, not merely absent
+    delete b.gx; // let it find a place in its new month
+    delete b.gy;
+    this.month(targetKey).blocks.push(b);
+
+    this.save();
+    return targetKey;
   }
 
   /** Swap in a whole document — an import, or a signed-out reset. */

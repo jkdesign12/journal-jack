@@ -62,7 +62,9 @@ export function loadView(): ViewState {
       /* same */
     }
   }
-  if (!saved) return view;
+  // anything but an object here — a half-written value, a cleared store, a
+  // stray string — means the view is simply the default, never a crash
+  if (!saved || typeof saved !== 'object') return view;
 
   const fields = Object.keys(view) as (keyof ViewState)[];
   const target = view as unknown as Record<string, unknown>;
