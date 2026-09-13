@@ -190,25 +190,25 @@ export function Tile({
       {/* Nothing sits on the artwork uninvited: where it came from, the day and
           the rating all wait for a hover, or a press on a touch screen. */}
       {isMedia && label ? (
-        <span className="reveal badge absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-white backdrop-blur-sm">
+        <span className="reveal badge absolute left-2 top-2 z-[2] rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-white backdrop-blur-sm">
           {label}
         </span>
       ) : null}
 
       {isMedia && block.day ? (
-        <span className="reveal absolute bottom-2 left-2 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#141210]">
+        <span className="reveal daytag absolute bottom-2 left-2 z-[2] rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-[#141210]">
           {block.day}
         </span>
       ) : null}
 
       {isMedia && block.rating != null ? (
-        <span className="reveal absolute bottom-2 right-2.5 text-[11px] text-[#ffd28a] [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]">
+        <span className="reveal rating absolute bottom-2 right-2.5 z-[2] text-[11px] text-[#ffd28a] [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]">
           {stars(block.rating)}
         </span>
       ) : null}
 
       {isMedia && block.title ? (
-        <div className="reveal pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2.5 pb-[30px] pt-6">
+        <div className="reveal cap pointer-events-none absolute inset-x-0 bottom-0 z-[1] bg-gradient-to-t from-black/85 to-transparent px-2.5 pb-[30px] pt-6">
           <b className="block text-[12.5px] font-semibold leading-tight text-white">{block.title}</b>
           {block.subtitle ? (
             <span className="block text-[11px] text-white/75">{block.subtitle}</span>
@@ -225,7 +225,7 @@ export function Tile({
           and kept while the tile is selected. */}
       <div
         className={
-          'tools absolute right-1.5 top-1.5 flex gap-1 transition-opacity ' +
+          'tools absolute right-1.5 top-1.5 z-[2] flex gap-1 transition-opacity ' +
           (selected ? '' : 'reveal')
         }
       >
