@@ -1,3 +1,15 @@
+# your journal's own data on this machine: SQLite and uploaded files
 data/
 
+# build output and dependencies
+node_modules/
+.next/
+out/
+
+# local environment and host state
+.env*.local
 .vercel
+
+# editor and OS noise
+.DS_Store
+*.log

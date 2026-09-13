@@ -594,3 +594,54 @@ body.dropping::after{
 .tagrow input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex:none}
 .tagrow-count{color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
 #openTags.is-on{border-color:var(--accent);color:var(--accent)}
+
+/* ---------- reading and tapping on a phone ----------
+   Everything to do with picking a date was built for a mouse and a desk: 12px
+   labels, 32px arrows either side of the month, a year grid of small buttons.
+   On a phone that is squinting and mis-tapping, so the whole date path — the
+   header arrows, the month jump, and the date field in a tile's details — is
+   sized for a thumb here. Nothing below the phone breakpoint touches the
+   desktop layout. */
+@media (max-width:640px){
+  #monthName{font-size:30px}
+  .yr{font-size:15px}
+  .monthnav{gap:4px}
+  .month-label{padding:6px 12px;gap:9px}
+  .monthnav .icon{width:46px;height:46px;font-size:27px}
+
+  /* the month jump: a grid you poke, not a menu you aim at */
+  #monthPop{width:min(340px,94vw)}
+  #monthPop .pop-head{font-size:23px;margin-bottom:10px}
+  #monthPop .pop-head .icon{width:46px;height:46px;font-size:27px}
+  .pop-grid{gap:8px}
+  .pop-grid button{padding:15px 8px;font-size:16px;border-radius:11px}
+  .pop-all{padding:15px 12px;font-size:15px}
+
+  /* popovers generally: bigger type, roomier rows. Taller rows can outgrow a
+     short phone screen, so a popover scrolls inside itself rather than running
+     off the bottom with its last row unreachable. */
+  .pop{padding:14px;max-height:84vh;overflow:auto}
+  .pop-head{font-size:21px}
+  .pop.menu{min-width:min(280px,86vw)}
+  .pop.menu button{padding:13px 14px;font-size:15px}
+  .tagrow{padding:11px 8px;font-size:15px}
+  .tagrow input[type=checkbox]{width:20px;height:20px}
+  .tagrow-count{font-size:13px}
+  .hint{font-size:12.5px}
+
+  /* a tile's details, where the other date lives. 16px on the inputs is also
+     what stops iOS zooming the whole page in the moment you tap one. */
+  .insp-body{padding:16px;gap:16px}
+  .f label{font-size:11.5px}
+  .f input,.f textarea,.f select{padding:11px 12px;font-size:16px}
+  .f input[type=date]{min-height:46px}
+  .f .row{flex-wrap:wrap}
+  .f .row .btn{padding:11px 14px;font-size:14px}
+  .chipset .chip{padding:9px 13px;font-size:13px}
+  .tagchip{padding:7px 8px 7px 12px;font-size:13px}
+  .tagchip button{width:20px;height:20px;font-size:11px}
+
+  .colour-row{font-size:14px}
+  .colour-inputs input[type=checkbox]{width:20px;height:20px}
+  .linkfield{padding:11px 12px;font-size:16px}
+}
