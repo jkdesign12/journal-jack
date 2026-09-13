@@ -6,7 +6,10 @@ import type { ViewState } from '@/lib/client/view';
 
 const button =
   'rounded-[9px] border border-line bg-panel px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap ' +
-  'hover:border-accent hover:text-accent';
+  'enabled:hover:border-accent enabled:hover:text-accent';
+
+/** Everything the old app had here that this one has not brought back yet. */
+export const NOT_YET = ['＋ Media', 'Widget', 'Sync', 'Sign in'] as const;
 
 export function Header({
   view,
@@ -98,10 +101,20 @@ export function Header({
           ))}
         </select>
 
-        <button className={button}>＋ Media</button>
-        <button className={button}>Widget</button>
-        <button className={button}>Sync</button>
-        <button className={button}>Sign in</button>
+        {/* Not ported yet. A button that looks clickable and does nothing is
+            worse than one that admits it, so these say so rather than swallow
+            the click — and a test holds them to it, which will fail the day one
+            is wired up and left like this. */}
+        {NOT_YET.map((label) => (
+          <button
+            key={label}
+            className={button + ' cursor-not-allowed opacity-40'}
+            disabled
+            title={`${label} is not ported yet — it is coming back`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </header>
   );

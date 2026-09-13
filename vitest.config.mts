@@ -6,7 +6,12 @@ import react from '@vitejs/plugin-react';
 // jsdom` docblock at the top of the file, so the fast tests stay fast.
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { '@': new URL('./src', import.meta.url).pathname } },
+  resolve: {
+    alias: {
+      '@': new URL('./src', import.meta.url).pathname,
+      'server-only': new URL('./src/test/server-only-stub.ts', import.meta.url).pathname,
+    },
+  },
   test: {
     globals: true,
     environment: 'node',
