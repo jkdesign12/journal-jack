@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Header, NOT_YET } from './Header';
 import { defaultView, type ViewState } from '@/lib/client/view';
+import type { SortMode } from '@/lib/journal/sort';
 
 /* Covers FEATURES 7.1–7.2, 7.6, 9.1 and 17: the header and everything it opens. */
 
@@ -18,7 +19,7 @@ type Span = { first?: string; last?: string };
 function setup(
   over: Partial<ViewState> = {},
   span: Span = { first: '2022', last: '2026' },
-  state: { signedIn?: boolean; busy?: boolean; canReset?: boolean } = {},
+  state: { signedIn?: boolean; busy?: boolean; canReset?: boolean; order?: SortMode } = {},
 ) {
   const handlers = {
     onShift: vi.fn(),
@@ -38,6 +39,7 @@ function setup(
   render(
     <Header
       view={view(over)}
+      order={state.order ?? ((over.sort as SortMode) ?? 'manual')}
       span={span}
       signedIn={state.signedIn ?? false}
       busy={state.busy ?? false}
@@ -186,5 +188,29 @@ describe('the account', () => {
 describe('the parts that are not ported yet', () => {
   it('is nothing — every control does something', () => {
     expect(NOT_YET).toEqual([]);
+  });
+});
+
+/* Grouping by month is only offered where it means something, and the dropdown
+   has to say what is actually happening rather than what is stored. */
+describe('grouping by month', () => {
+  it('is offered in the everything view', () => {
+    setup({ all: true });
+    const orders = screen.getByTitle('Order') as HTMLSelectElement;
+    expect([...orders.options].map((o) => o.textContent)).toContain('By month');
+  });
+
+  it('is not offered inside a single month, where it would be one heading', () => {
+    setup({ all: false });
+    const orders = screen.getByTitle('Order') as HTMLSelectElement;
+    expect([...orders.options].map((o) => o.textContent)).not.toContain('By month');
+  });
+
+  /* Leaving the everything view falls back to newest first. The dropdown used
+     to keep showing "Custom order" while the board was doing something else. */
+  it('shows the order in force, not the one that is stored', () => {
+    setup({ all: false, sort: 'month' }, undefined, { order: '-date' });
+    const orders = screen.getByTitle('Order') as HTMLSelectElement;
+    expect(orders.value).toBe('-date');
   });
 });
