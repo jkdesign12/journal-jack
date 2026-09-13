@@ -11,7 +11,9 @@ const view = (over: Partial<ViewState> = {}): ViewState => ({
   ...over,
 });
 
-function setup(over: Partial<ViewState> = {}, span = { first: '2022', last: '2026' }) {
+type Span = { first?: string; last?: string };
+
+function setup(over: Partial<ViewState> = {}, span: Span = { first: '2022', last: '2026' }) {
   const handlers = {
     onShift: vi.fn(),
     onView: vi.fn(),

@@ -61,7 +61,8 @@ describe('uploading a file to the account', () => {
     });
 
     await expect(Account.uploadBlob('f3', big(9), { loud: true })).rejects.toThrow(
-      /larger than the host accepts.*ordinary route said.*Payload too large/s,
+      // [\s\S] rather than the s flag, which needs a newer target than this build
+      /larger than the host accepts[\s\S]*ordinary route said[\s\S]*Payload too large/,
     );
   });
 
