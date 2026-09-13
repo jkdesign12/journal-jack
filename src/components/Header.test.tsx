@@ -5,6 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { Header, NOT_YET } from './Header';
 import { defaultView, type ViewState } from '@/lib/client/view';
 
+/* Covers FEATURES 7.1–7.2, 7.6, 9.1 and 17: the header and everything it opens. */
+
 const view = (over: Partial<ViewState> = {}): ViewState => ({
   ...defaultView(),
   cursor: '2026-09',
@@ -16,7 +18,7 @@ type Span = { first?: string; last?: string };
 function setup(
   over: Partial<ViewState> = {},
   span: Span = { first: '2022', last: '2026' },
-  state: { signedIn?: boolean; busy?: boolean } = {},
+  state: { signedIn?: boolean; busy?: boolean; canReset?: boolean } = {},
 ) {
   const handlers = {
     onShift: vi.fn(),
@@ -24,14 +26,22 @@ function setup(
     onSort: vi.fn(),
     onOpenMonths: vi.fn(),
     onOpenAccount: vi.fn(),
+    onOpenTags: vi.fn(),
+    onOpenMedia: vi.fn(),
+    onOpenWidgets: vi.fn(),
+    onOpenSync: vi.fn(),
+    onOpenMenu: vi.fn(),
     onSync: vi.fn(),
+    onResetLayout: vi.fn(),
   };
+
   render(
     <Header
       view={view(over)}
       span={span}
       signedIn={state.signedIn ?? false}
       busy={state.busy ?? false}
+      canReset={state.canReset ?? false}
       {...handlers}
     />,
   );
@@ -103,36 +113,44 @@ describe('the header', () => {
   });
 });
 
-/* The port is not finished, and the header is where that shows. These hold the
-   unfinished buttons to admitting it: wire one up and leave it disabled, and
-   this fails. It is meant to. */
-describe('the parts that are not ported yet', () => {
-  it.each(NOT_YET)('%s says it does not work rather than pretending', (label) => {
-    setup();
-    const el = screen.getByRole('button', { name: label });
-    expect(el).toBeDisabled();
-    expect(el).toHaveAttribute('title', expect.stringMatching(/not ported yet/));
+describe('the controls that open things', () => {
+  it('opens media, widgets, tags, sync and the menu', async () => {
+    const { user, onOpenMedia, onOpenWidgets, onOpenTags, onOpenSync, onOpenMenu } = setup();
+
+    await user.click(screen.getByRole('button', { name: '＋ Media' }));
+    await user.click(screen.getByRole('button', { name: 'Widget' }));
+    await user.click(screen.getByRole('button', { name: 'Tags' }));
+    await user.click(screen.getByRole('button', { name: 'Sync' }));
+    await user.click(screen.getByLabelText('More'));
+
+    expect(onOpenMedia).toHaveBeenCalledOnce();
+    expect(onOpenWidgets).toHaveBeenCalledOnce();
+    expect(onOpenTags).toHaveBeenCalledOnce();
+    expect(onOpenSync).toHaveBeenCalledOnce();
+    expect(onOpenMenu).toHaveBeenCalledOnce();
   });
 
-  it('cannot be clicked into doing nothing', async () => {
-    const { user } = setup();
-    const media = screen.getByRole('button', { name: '＋ Media' });
-    await user.click(media);
-    // nothing to assert about a result: the point is that the click is refused
-    expect(media).toBeDisabled();
+  it('says how many tags are switched off', () => {
+    setup({ hiddenTags: ['Movie', 'Music'] });
+    const tags = screen.getByRole('button', { name: 'Tags · 2 off' });
+    expect(tags.className).toMatch(/border-accent/);
   });
 
-  it('names exactly what is still missing, so the list cannot rot quietly', () => {
-    expect(NOT_YET).toEqual(['＋ Media', 'Widget']);
+  /* Only worth offering where there is a hand-made layout to undo: in a sorted
+     view or the all view, positions are not being kept anyway. */
+  it('offers to reset the layout only where that means something', async () => {
+    expect(screen.queryByRole('button', { name: 'Reset layout' })).not.toBeInTheDocument();
+
+    const { user, onResetLayout } = setup({}, undefined, { canReset: true });
+    await user.click(screen.getByRole('button', { name: 'Reset layout' }));
+    expect(onResetLayout).toHaveBeenCalledOnce();
   });
 });
 
 describe('the account', () => {
   it('offers a way in when nobody is signed in', async () => {
     const { user, onOpenAccount } = setup();
-    const button = screen.getByRole('button', { name: 'Sign in' });
-    expect(button).toBeEnabled();
-    await user.click(button);
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(onOpenAccount).toHaveBeenCalledOnce();
   });
 
@@ -142,22 +160,31 @@ describe('the account', () => {
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
   });
 
-  /* Syncing without an account would do nothing, so it says so by being
-     unavailable rather than by failing after you press it. */
-  it('cannot sync while signed out', () => {
+  it('offers to sync only once there is an account to sync with', () => {
     setup();
-    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Sync now' })).not.toBeInTheDocument();
+
+    setup({}, undefined, { signedIn: true });
+    expect(screen.getByRole('button', { name: 'Sync now' })).toBeInTheDocument();
   });
 
   it('syncs when asked', async () => {
     const { user, onSync } = setup({}, undefined, { signedIn: true });
-    await user.click(screen.getByRole('button', { name: 'Sync' }));
+    await user.click(screen.getByRole('button', { name: 'Sync now' }));
     expect(onSync).toHaveBeenCalledOnce();
   });
 
   it('will not start a second sync on top of the first', () => {
     setup({}, undefined, { signedIn: true, busy: true });
-    const button = screen.getByRole('button', { name: 'Syncing…' });
-    expect(button).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Syncing…' })).toBeDisabled();
+  });
+});
+
+/* This list held the buttons that were drawn but dead. It is empty now, and
+   this test is what keeps it honest: put something back on it without wiring
+   it up, and say so here. */
+describe('the parts that are not ported yet', () => {
+  it('is nothing — every control does something', () => {
+    expect(NOT_YET).toEqual([]);
   });
 });

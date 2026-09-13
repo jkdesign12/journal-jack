@@ -6,33 +6,51 @@ import type { ViewState } from '@/lib/client/view';
 
 const button =
   'rounded-[9px] border border-line bg-panel px-3 py-1.5 text-[12.5px] font-medium whitespace-nowrap ' +
-  'enabled:hover:border-accent enabled:hover:text-accent';
+  'enabled:hover:border-accent enabled:hover:text-accent disabled:opacity-50';
 
-/** Everything the old app had here that this one has not brought back yet. */
-export const NOT_YET = ['＋ Media', 'Widget'] as const;
+const arrow =
+  'flex h-8 w-8 items-center justify-center rounded-[9px] text-[17px] text-ink-2 ' +
+  'hover:bg-bg-2 hover:text-ink max-[640px]:h-[46px] max-[640px]:w-[46px] max-[640px]:text-[27px]';
+
+/** Nothing left: every control the original had is wired up. */
+export const NOT_YET: readonly string[] = [];
 
 export function Header({
   view,
   span,
+  signedIn,
+  busy,
+  canReset,
   onShift,
   onView,
   onSort,
   onOpenMonths,
   onOpenAccount,
+  onOpenTags,
+  onOpenMedia,
+  onOpenWidgets,
+  onOpenSync,
+  onOpenMenu,
   onSync,
-  signedIn,
-  busy,
+  onResetLayout,
 }: {
   view: ViewState;
   span: { first?: string; last?: string };
+  signedIn: boolean;
+  busy: boolean;
+  canReset: boolean;
   onShift: (delta: number) => void;
   onView: (mode: 'grid' | 'calendar') => void;
   onSort: (mode: SortMode) => void;
   onOpenMonths: () => void;
   onOpenAccount: () => void;
+  onOpenTags: () => void;
+  onOpenMedia: () => void;
+  onOpenWidgets: () => void;
+  onOpenSync: () => void;
+  onOpenMenu: () => void;
   onSync: () => void;
-  signedIn: boolean;
-  busy: boolean;
+  onResetLayout: () => void;
 }) {
   const [year, month] = view.cursor.split('-').map(Number);
   const title = view.all ? 'Everything' : MONTHS[month - 1];
@@ -44,24 +62,21 @@ export function Header({
         : `${span.first}–${span.last}`
     : String(year);
 
+  const off = view.hiddenTags.length;
+
   return (
-    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-4 border-b border-line bg-bg/85 px-5 py-3.5 backdrop-blur-md max-[640px]:static">
-      <span className="font-serif text-[22px] whitespace-nowrap">
+    <header className="sticky top-0 z-40 flex flex-wrap items-center gap-4 border-b border-line bg-bg/85 px-5 py-3.5 backdrop-blur-md max-[640px]:static max-[640px]:gap-2 max-[640px]:px-3">
+      <span className="font-serif text-[22px] whitespace-nowrap max-[640px]:text-[19px]">
         journal<em className="not-italic text-brand">.jack</em>
       </span>
 
       <nav className="mx-auto flex items-center gap-1 max-[640px]:order-first max-[640px]:w-full max-[640px]:justify-center">
-        <button
-          className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[17px] text-ink-2 hover:bg-bg-2 hover:text-ink max-[640px]:h-[46px] max-[640px]:w-[46px] max-[640px]:text-[27px]"
-          onClick={() => onShift(-1)}
-          title="Previous month"
-          aria-label="Previous month"
-        >
+        <button className={arrow} onClick={() => onShift(-1)} title="Previous month" aria-label="Previous month">
           ‹
         </button>
 
         <button
-          className="flex items-baseline gap-2 rounded-[10px] px-3.5 py-1 hover:bg-bg-2"
+          className="flex items-baseline gap-2 rounded-[10px] px-3.5 py-1 hover:bg-bg-2 max-[640px]:gap-2.5"
           onClick={onOpenMonths}
         >
           <span className="font-serif text-[30px] leading-none">{title}</span>
@@ -70,17 +85,12 @@ export function Header({
           </span>
         </button>
 
-        <button
-          className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[17px] text-ink-2 hover:bg-bg-2 hover:text-ink max-[640px]:h-[46px] max-[640px]:w-[46px] max-[640px]:text-[27px]"
-          onClick={() => onShift(1)}
-          title="Next month"
-          aria-label="Next month"
-        >
+        <button className={arrow} onClick={() => onShift(1)} title="Next month" aria-label="Next month">
           ›
         </button>
       </nav>
 
-      <div className="flex items-center gap-2 max-[640px]:w-full max-[640px]:flex-wrap">
+      <div className="flex items-center gap-2 max-[640px]:w-full max-[640px]:flex-wrap max-[640px]:gap-1.5">
         <div className="flex rounded-[10px] border border-line bg-bg-2 p-[3px]">
           {(['grid', 'calendar'] as const).map((mode) => (
             <button
@@ -109,27 +119,56 @@ export function Header({
           ))}
         </select>
 
-        {/* Still to come. A button that looks clickable and does nothing is
-            worse than one that admits it, so these say so rather than swallow
-            the click — and a test holds them to it, which will fail the day one
-            is wired up and left like this. */}
-        {NOT_YET.map((label) => (
+        {/* Only worth offering where there is a hand-made layout to undo. */}
+        {canReset ? (
           <button
-            key={label}
-            className={button + ' cursor-not-allowed opacity-40'}
-            disabled
-            title={`${label} is not ported yet — it is coming back`}
+            className={button}
+            onClick={onResetLayout}
+            title="Repack this month's tiles in order. Sizes you set by hand are kept."
           >
-            {label}
+            Reset layout
           </button>
-        ))}
+        ) : null}
 
-        <button className={button} onClick={onSync} disabled={!signedIn || busy}>
-          {busy ? 'Syncing…' : 'Sync'}
+        <button
+          className={button + (off ? ' border-accent text-accent' : '')}
+          onClick={onOpenTags}
+          title="Show or hide items by tag"
+        >
+          {off ? `Tags · ${off} off` : 'Tags'}
         </button>
+
+        <button className={button} onClick={onOpenMedia}>
+          ＋ Media
+        </button>
+
+        <button className={button} onClick={onOpenWidgets}>
+          Widget
+        </button>
+
+        <button className={button} onClick={onOpenSync}>
+          Sync
+        </button>
+
+        {/* Syncing without an account would do nothing, so it only appears
+            once there is one to sync with. */}
+        {signedIn ? (
+          <button className={button} onClick={onSync} disabled={busy}>
+            {busy ? 'Syncing…' : 'Sync now'}
+          </button>
+        ) : null}
 
         <button className={button} onClick={onOpenAccount}>
           {signedIn ? 'Account' : 'Sign in'}
+        </button>
+
+        <button
+          className="flex h-8 w-8 items-center justify-center rounded-[9px] text-[17px] text-ink-2 hover:bg-bg-2 hover:text-ink"
+          onClick={onOpenMenu}
+          title="More"
+          aria-label="More"
+        >
+          ⋯
         </button>
       </div>
     </header>

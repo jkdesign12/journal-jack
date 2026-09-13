@@ -124,3 +124,11 @@ export function monthStyle(
   out['--ink-3'] = mixHex(text, base, 0.58);
   return out;
 }
+
+/**
+ * A colour for a tile with no artwork, taken from its title so it stays the
+ * same every time the board redraws rather than flickering on each render.
+ */
+export function hueOf(title: string | undefined): number {
+  return [...(title || 'x')].reduce((a, c) => a + c.charCodeAt(0) * 7, 0) % 360;
+}
