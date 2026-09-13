@@ -1,0 +1,596 @@
+/* ---------- tokens ---------- */
+:root{
+  --accent:#e2404a;
+  --brand:#ff3b47;
+  --bg:#0e0e10;
+  --bg-2:#151518;
+  --panel:#1a1a1e;
+  --line:#2a2a30;
+  --ink:#f2efe9;
+  --ink-2:#a2a0a8;
+  --ink-3:#6c6a73;
+  --radius:14px;
+  --cell:168px;
+  --row:4px;
+  --gap:12px;
+  --serif:"Instrument Serif", Georgia, "Times New Roman", serif;
+  --sans:"Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+[data-theme="light"]{
+  --accent:#c8202d;
+  --brand:#d81f2a;
+  --bg:#f6f2ea;
+  --bg-2:#efe9de;
+  --panel:#fffdf8;
+  --line:#e0d7c7;
+  --ink:#201d18;
+  --ink-2:#6b6357;
+  --ink-3:#9c9285;
+  --shadow:0 10px 30px rgba(60,45,20,.10);
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:14px;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+::selection{background:var(--accent);color:#141414}
+
+/* ---------- chrome ---------- */
+.banner{padding:8px 16px;background:#7a2f2f;color:#fff;font-size:12.5px;text-align:center}
+[data-theme="light"] .banner{background:#b5533f}
+
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:18px;
+  padding:14px 20px;
+  background:color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.brand{font-family:var(--serif);font-size:22px;letter-spacing:.2px;white-space:nowrap}
+.brand em{color:var(--brand);font-style:italic}
+
+.monthnav{display:flex;align-items:center;gap:6px;margin-inline:auto}
+.month-label{display:flex;align-items:baseline;gap:8px;padding:4px 14px;border-radius:10px}
+.month-label:hover{background:var(--bg-2)}
+#monthName{font-family:var(--serif);font-size:30px;line-height:1}
+/* exactly the year's text colour — not the muted mix, which reads as a
+   different colour rather than a quieter one */
+.yr{font-size:13px;letter-spacing:.14em;color:var(--ink);font-weight:800}
+
+.actions{display:flex;align-items:center;gap:8px}
+.sortsel{
+  padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  font-size:12.5px;color:var(--ink-2);outline:none;
+}
+.sortsel:hover{border-color:var(--accent);color:var(--ink)}
+.btn{
+  padding:7px 13px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  font-size:12.5px;font-weight:500;white-space:nowrap;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.ghost{background:none}
+.icon{
+  width:32px;height:32px;border-radius:9px;font-size:17px;color:var(--ink-2);
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.icon:hover{background:var(--bg-2);color:var(--ink)}
+.seg{display:flex;padding:3px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px}
+.seg-btn{padding:5px 12px;border-radius:7px;font-size:12.5px;color:var(--ink-2)}
+.seg-btn.is-on{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+
+/* ---------- player ---------- */
+.player{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 20px;border-bottom:1px solid var(--line);
+  background:var(--bg-2);
+}
+.play{
+  width:34px;height:34px;flex:none;border-radius:50%;
+  background:var(--accent);color:#14120f;font-size:13px;
+  display:flex;align-items:center;justify-content:center;
+}
+.play:disabled{opacity:.35;cursor:default}
+.track{flex:1;min-width:0}
+.track-top{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--ink-2);margin-bottom:5px}
+.track-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track-time{font-variant-numeric:tabular-nums;color:var(--ink-3)}
+.scrub{height:4px;border-radius:4px;background:var(--line);cursor:pointer;position:relative}
+.scrub-fill{height:100%;width:0;border-radius:4px;background:var(--accent)}
+.vol input{width:80px;accent-color:var(--accent)}
+
+main{padding:22px 24px 120px}
+
+/* ---------- grid ---------- */
+/* Fine row units + a JS-computed row span per block, so every tile keeps the
+   shape of what is inside it: a film poster stays 2:3, an album cover stays
+   square, a phone photo stays tall. The size control picks width only. */
+/* Positions come from layoutGrid(); the gap value is read back out of here. */
+.grid{
+  position:relative;
+  display:block;
+  column-gap:var(--gap);
+  row-gap:var(--gap);
+}
+/* No border: the artwork should meet the page directly. Hover and selection
+   use an outline instead, which sits inside the tile and leaves box-shadow free
+   for the month's own drop shadow. */
+.block{
+  position:absolute;overflow:hidden;border-radius:var(--radius);
+  background:var(--panel);
+  box-shadow:var(--tile-shadow, none);
+  transition:transform .12s ease, outline-color .12s ease, box-shadow .15s ease;
+  outline:1px solid transparent;outline-offset:-1px;
+}
+.block:hover{outline-color:color-mix(in srgb,var(--accent) 55%, transparent)}
+.block.is-sel{outline:2px solid var(--accent);outline-offset:-2px}
+.block.dragging{opacity:.3}
+
+/* While a tile is being carried, show the lanes it can land in. The overlay is
+   drawn from the same numbers layoutGrid() just used, so the squares line up
+   with where tiles actually go. */
+.grid-guides{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  opacity:0;transition:opacity .18s ease;border-radius:var(--radius);
+  background-image:
+    repeating-linear-gradient(to right,
+      color-mix(in srgb,var(--accent) 9%,transparent) 0 var(--colw),
+      transparent var(--colw) var(--pitch)),
+    repeating-linear-gradient(to bottom,
+      color-mix(in srgb,var(--accent) 26%,transparent) 0 1px,
+      transparent 1px var(--pitch));
+}
+body.placing .grid-guides{opacity:1}
+
+/* where the tile will land */
+.drop-ghost{
+  position:absolute;z-index:1;pointer-events:none;
+  border:2px dashed var(--accent);border-radius:var(--radius);
+  background:color-mix(in srgb,var(--accent) 12%,transparent);
+  transition:left .08s ease, top .08s ease;
+}
+.block.dragging{cursor:grabbing;box-shadow:0 18px 40px rgba(0,0,0,.45);opacity:.85}
+.block.resizing{box-shadow:0 18px 40px rgba(0,0,0,.45);outline:2px solid var(--accent);outline-offset:-2px}
+
+/* Corner grips are invisible on purpose — the cursor changing to a resize arrow
+   is the whole affordance, and dots on every tile would clutter the board.
+   The hit areas are a touch larger to make up for having nothing to aim at. */
+.hnd{position:absolute;width:20px;height:20px;z-index:3}
+.hnd-nw{top:0;left:0;cursor:nwse-resize}
+.hnd-ne{top:0;right:0;cursor:nesw-resize}
+.hnd-sw{bottom:0;left:0;cursor:nesw-resize}
+.hnd-se{bottom:0;right:0;cursor:nwse-resize}
+.block{cursor:grab;touch-action:none}
+.block .w input,.block .w textarea{cursor:text}
+body.placing .block{transition:opacity .15s ease}
+body.placing .block:not(.dragging){opacity:.55}
+
+/* the tile you are hovering is the slot it will take */
+.block.drag-over{
+  transform:scale(.97);
+  outline:2px dashed var(--accent);outline-offset:-3px;
+  opacity:1 !important;
+}
+
+.block img,.block video{width:100%;height:100%;object-fit:cover;display:block}
+.block .cap{
+  position:absolute;left:0;right:0;bottom:0;padding:26px 10px 9px;
+  background:linear-gradient(transparent,rgba(0,0,0,.82));
+  color:#fff;opacity:0;transition:opacity .15s;pointer-events:none;
+}
+.cap b{display:block;font-size:12.5px;font-weight:600;line-height:1.25}
+.cap span{font-size:11px;opacity:.75}
+.cap em{
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+  margin-top:6px;font-size:11px;font-style:italic;line-height:1.45;opacity:.9;
+}
+.badge{
+  position:absolute;top:8px;left:8px;padding:3px 7px;border-radius:6px;
+  font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(0,0,0,.6);color:#fff;backdrop-filter:blur(6px);
+}
+.daytag{
+  position:absolute;bottom:8px;left:8px;padding:3px 7px;border-radius:6px;
+  font-size:10px;background:var(--accent);color:#141210;font-weight:600;
+}
+.rating{position:absolute;bottom:9px;right:10px;font-size:11px;color:#ffd28a;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+
+/* Nothing but the artwork until you point at it. */
+.block .cap,
+.block .badge,
+.block .daytag,
+.block .rating{opacity:0;transition:opacity .16s ease;pointer-events:none}
+/* the gradient is a backdrop: it sits under every piece of text, never over it */
+.block .cap{z-index:1}
+.block .badge,
+.block .daytag,
+.block .rating{z-index:2}
+.block:hover .cap,
+.block:hover .badge,
+.block:hover .rating,
+.block:focus-within .cap,
+.block:focus-within .badge,
+.block:focus-within .rating{opacity:1}
+.block:hover .daytag,
+.block:focus-within .daytag{opacity:1}
+/* the caption gradient needs room above the date chip */
+.block .cap{padding-bottom:30px}
+/* a card with no artwork already prints its title — fade that out as the
+   hover caption fades in, so the two never overlap */
+.block.is-card .poster-t,
+.block.is-card .poster-s,
+.block.is-card .poster-r{transition:opacity .16s ease}
+.block.is-card:hover .poster-t,
+.block.is-card:hover .poster-s,
+.block.is-card:hover .poster-r{opacity:0}
+/* widgets are their own content — never dim those */
+.block .w{opacity:1}
+
+/* artwork-less imports (a Letterboxd CSV has titles and dates, no posters) */
+.poster{
+  height:100%;padding:14px;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;
+  background:linear-gradient(160deg,hsl(var(--h) 26% 26%),hsl(var(--h) 30% 13%));
+  color:#f4efe8;
+}
+[data-theme="light"] .poster{
+  background:linear-gradient(160deg,hsl(var(--h) 42% 86%),hsl(var(--h) 34% 72%));
+  color:#241f1a;
+}
+.poster-t{font-family:var(--serif);font-size:19px;line-height:1.12}
+.poster-s{font-size:11px;opacity:.65}
+.poster-r{font-size:11px;color:#ffd28a}
+[data-theme="light"] .poster-r{color:#8a5a1f}
+
+/* export drop zone in the sync drawer */
+.dropzone{
+  border:1px dashed var(--line);border-radius:11px;padding:16px;text-align:center;cursor:pointer;
+  display:flex;flex-direction:column;gap:5px;transition:border-color .12s,background .12s;
+}
+.dropzone:hover,.dropzone.over{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.dropzone b{font-size:12.5px}
+.dropzone span{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.dropzone.busy{opacity:.5;pointer-events:none}
+
+/* widgets */
+.w{padding:14px;display:flex;flex-direction:column;gap:8px;height:100%;overflow:auto}
+.w h4{margin:0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.w textarea{flex:1;background:none;border:0;outline:none;resize:none;line-height:1.45}
+.w.note{background:color-mix(in srgb,var(--accent) 14%, var(--panel))}
+.w.quote{align-items:center;justify-content:center;text-align:center}
+.w.quote textarea{font-family:var(--serif);font-size:20px;text-align:center}
+.w.heading{justify-content:center}
+.w.heading textarea{font-family:var(--serif);font-size:30px;line-height:1.1}
+.w .list{display:flex;flex-direction:column;gap:6px;flex:1;overflow:auto}
+.w .list label{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.35}
+.w .list input[type=checkbox]{accent-color:var(--accent);margin-top:2px}
+.w .list input[type=text]{flex:1;background:none;border:0;outline:none;min-width:0}
+.w .list .done input[type=text]{text-decoration:line-through;color:var(--ink-3)}
+.w .add{font-size:11.5px;color:var(--ink-3);text-align:left}
+.w .add:hover{color:var(--accent)}
+.pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:6px;flex:1}
+.pal input{width:100%;height:100%;min-height:34px;border:0;border-radius:8px;padding:0;background:none;cursor:pointer}
+.stats{display:flex;flex-direction:column;gap:2px;justify-content:center;flex:1}
+.stats .n{font-family:var(--serif);font-size:34px;line-height:1}
+.stats .r{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);padding:3px 0;border-bottom:1px dashed var(--line)}
+.w.link{justify-content:space-between}
+.w.link a{color:var(--accent);font-size:12.5px;word-break:break-all}
+
+.block .tools{position:absolute;top:6px;right:6px;display:flex;gap:4px;opacity:0;transition:opacity .12s}
+.block:hover .tools,.block.is-sel .tools{opacity:1}
+.block .tools button{
+  width:24px;height:24px;border-radius:7px;font-size:12px;
+  background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+}
+[data-theme="light"] .block .tools button{background:rgba(255,255,255,.9);color:#333;border:1px solid var(--line)}
+.block .tools button:hover{background:var(--accent);color:#141210}
+
+.empty{
+  padding:70px 20px;text-align:center;color:var(--ink-3);
+  border:1px dashed var(--line);border-radius:var(--radius);
+}
+.empty b{display:block;font-family:var(--serif);font-size:24px;color:var(--ink-2);margin-bottom:6px}
+
+body.dropping::after{
+  content:"drop to add";
+  position:fixed;inset:12px;z-index:200;pointer-events:none;
+  border:2px dashed var(--accent);border-radius:20px;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:26px;
+  color:var(--accent);font-family:var(--serif);font-size:22px;
+  background:color-mix(in srgb,var(--accent) 7%, transparent);
+}
+
+/* ---------- calendar ---------- */
+.cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap);margin-bottom:8px}
+.cal-head div{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);font-weight:700;padding-left:4px}
+.cal-body{display:grid;grid-template-columns:repeat(7,1fr);gap:var(--gap)}
+.day{
+  min-height:132px;border:1px solid var(--ink);border-radius:12px;background:var(--ink);
+  padding:8px;display:flex;flex-direction:column;gap:6px;
+}
+/* days belonging to the neighbouring month are not real days here */
+.day.pad{background:none;border-color:var(--line);border-style:dashed;opacity:.28}
+.day.today{outline:2px solid var(--accent);outline-offset:-2px}
+.day.drag-over{background:color-mix(in srgb,var(--accent) 45%, var(--ink));border-color:var(--accent)}
+.day .n{
+  font-size:13px;color:var(--bg);font-weight:800;
+  font-variant-numeric:tabular-nums;letter-spacing:.02em;
+}
+.day.pad .n{color:var(--ink-3)}
+.day.today .n{color:var(--bg)}
+.day .thumbs{display:flex;flex-wrap:wrap;gap:4px}
+.thumb{
+  width:38px;height:38px;border-radius:7px;overflow:hidden;background:var(--bg-2);
+  border:1px solid var(--line);position:relative;cursor:pointer;
+}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .ph{display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:var(--ink-3)}
+.day .more{font-size:10.5px;color:var(--bg);font-weight:600;opacity:.8}
+@media (max-width:760px){
+  .cal-head{display:none}
+  .cal-body{grid-template-columns:repeat(2,1fr)}
+  .day.pad{display:none}
+}
+
+.tray{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
+.tray-label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:10px}
+.tray-items{display:flex;flex-wrap:wrap;gap:8px}
+.tray-items .thumb{width:56px;height:56px;cursor:grab}
+
+/* ---------- inspector / drawer ---------- */
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:340px;z-index:60;
+  background:var(--panel);border-left:1px solid var(--line);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;overflow:auto;
+}
+.inspector{
+  position:fixed;z-index:70;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(460px,92vw);max-height:82vh;
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 24px 70px rgba(0,0,0,.5);
+  display:flex;flex-direction:column;overflow:auto;
+  animation:pop .16s ease;
+}
+@keyframes pop{from{opacity:0;transform:translate(-50%,-48%) scale(.98)}}
+.inspector .insp-media{
+  aspect-ratio:auto;max-height:30vh;object-fit:contain;
+  background:var(--bg-2);padding:16px 16px 0;
+}
+.inspector .insp-body{gap:12px}
+.drawer{width:min(420px,100vw)}
+.insp-media{width:100%;display:block}
+.insp-body,.drawer-body{padding:18px;display:flex;flex-direction:column;gap:14px}
+.drawer-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2;
+}
+.drawer-head h2{margin:0;font-family:var(--serif);font-size:22px;font-weight:400}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.f input,.f textarea,.f select{
+  background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;outline:none;width:100%;
+}
+.f input:focus,.f textarea:focus,.f select:focus{border-color:var(--accent)}
+.f textarea{min-height:76px;resize:vertical}
+.row{display:flex;gap:8px}
+.row>*{flex:1;min-width:0}
+.chipset{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:6px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--ink-2)}
+.chip.is-on{border-color:var(--accent);color:var(--accent)}
+.danger{color:#e2725b}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.55}
+.hint code{background:var(--bg-2);padding:1px 5px;border-radius:5px;font-size:11px}
+.hint a{color:var(--accent)}
+
+/* services */
+.svc{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.svc-head{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--bg-2);width:100%;text-align:left}
+.svc-dot{width:9px;height:9px;border-radius:50%;background:var(--ink-3);flex:none}
+.svc-dot.live{background:#6fcf97}
+.svc-dot.partial{background:#f2c94c}
+.svc-head b{font-size:13.5px;font-weight:600;flex:1}
+.svc-head .tag{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.svc-body{padding:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.pull{background:var(--accent);color:#141210;border-radius:9px;padding:9px;font-weight:600;font-size:12.5px}
+.pull:disabled{opacity:.5;cursor:default}
+
+/* account + busy indicator */
+.busy-dot{
+  display:inline-block;width:6px;height:6px;margin-left:6px;border-radius:50%;
+  background:var(--accent);vertical-align:middle;animation:pulse 1s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+.pop.account{width:min(330px,92vw);display:flex;flex-direction:column;gap:12px;padding:16px}
+.acct-title{font-family:var(--serif);font-size:20px}
+.acct-head{display:flex;gap:11px;align-items:center}
+.acct-head b{font-size:13px;word-break:break-all}
+.avatar{
+  width:36px;height:36px;flex:none;border-radius:50%;background:var(--accent);color:#141210;
+  display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:19px;
+}
+.check,.f label.check{
+  display:flex;gap:8px;align-items:flex-start;line-height:1.4;
+  font-size:12.5px;color:var(--ink-2);text-transform:none;letter-spacing:normal;
+}
+.check input{accent-color:var(--accent);margin-top:2px}
+.linky{color:var(--accent);text-decoration:underline;font-size:11.5px;padding:0}
+.hint.bad{color:#e2725b}
+
+/* ---------- popovers ---------- */
+.pop{
+  position:fixed;z-index:80;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow);padding:12px;
+}
+.pop-head{display:flex;align-items:center;justify-content:space-between;font-family:var(--serif);font-size:19px;margin-bottom:8px}
+.pop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.pop-grid button{padding:9px 12px;border-radius:9px;font-size:12.5px;color:var(--ink-2)}
+.pop-grid button:hover{background:var(--bg-2);color:var(--ink)}
+.pop-grid button.is-on{background:var(--accent);color:#141210;font-weight:600}
+.pop.menu{padding:6px;min-width:230px;display:flex;flex-direction:column}
+
+/* per-month colour picker */
+#colourPop{width:min(320px,94vw);display:flex;flex-direction:column;gap:10px}
+#mediaPop{width:min(340px,94vw);display:flex;flex-direction:column;gap:10px}
+#mediaPop .row{gap:6px}
+.linkfield{
+  flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:9px;
+  background:var(--bg-2);color:var(--ink);outline:none;font-size:12.5px;
+}
+.linkfield:focus{border-color:var(--accent)}
+.colour-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12.5px}
+.colour-inputs{display:flex;align-items:center;gap:6px}
+.colour-inputs input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);cursor:pointer}
+.colour-inputs input[type=range]{width:120px;accent-color:var(--accent);cursor:pointer}
+.slider-value{
+  min-width:4.5ch;text-align:right;font-size:11.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;
+}
+.colour-row input[type=color]{
+  width:38px;height:30px;padding:0;border:1px solid var(--line);border-radius:8px;
+  background:none;cursor:pointer;flex:none;
+}
+/* the hex box: wide enough for #aabbcc and nothing more */
+.colour-row input.hex{
+  width:9ch;padding:6px 8px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg-2);color:var(--ink);outline:none;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+  text-transform:lowercase;
+}
+.colour-row input.hex:focus{border-color:var(--accent)}
+.colour-row input.hex.bad{border-color:#e2725b;color:#e2725b}
+.colour-presets{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.colour-chip{
+  padding:9px 8px;border-radius:9px;border:1px solid var(--line);
+  font-size:11.5px;text-align:center;
+}
+.colour-chip.is-on{outline:2px solid var(--accent);outline-offset:1px}
+
+/* each swatch carries its own remove button */
+.chip-wrap{position:relative;display:block}
+.chip-wrap .colour-chip{width:100%}
+.chip-x{
+  position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+  background:var(--bg-2);color:var(--ink-2);border:1px solid var(--line);
+  font-size:9px;line-height:1;display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .12s ease;
+}
+.chip-wrap:hover .chip-x,.chip-x:focus{opacity:1}
+.chip-x:hover{background:#e2725b;color:#fff;border-color:#e2725b}
+@media (pointer:coarse){ .chip-x{opacity:1} }   /* no hover on a phone */
+.pop.menu button{text-align:left;padding:9px 12px;border-radius:9px;font-size:13px}
+.pop.menu button:hover{background:var(--bg-2)}
+.pop.menu .sep{height:1px;background:var(--line);margin:5px 8px}
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45)}
+[data-theme="light"] .scrim{background:rgba(40,30,15,.28)}
+
+/* ---------- toasts ---------- */
+.toasts{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{
+  padding:10px 16px;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+  box-shadow:var(--shadow);font-size:12.5px;animation:rise .22s ease;
+}
+.toast.bad{border-color:#e2725b;color:#e2725b}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+
+/* ---------- phones, portrait ----------
+   Desktop is untouched: everything here is inside a narrow-width query. The
+   board itself stays the same design, only tighter, and the toolbar wraps into
+   two rows instead of overflowing. */
+@media (max-width:640px){
+  .topbar{flex-wrap:wrap;gap:8px;padding:10px 12px}
+  .monthnav{order:-1;width:100%;justify-content:center;gap:2px}
+  #monthName{font-size:26px}
+  /* the buttons will not fit one row on a phone, so let them wrap onto two
+     instead of running off the edge */
+  .actions{width:100%;flex-wrap:wrap;justify-content:flex-start;gap:6px}
+  /* and a two-row toolbar is too much to keep pinned: let it scroll away */
+  .topbar{position:static}
+  .brand{font-size:19px}
+
+  /* the buttons have to fit one row without a horizontal scrollbar */
+  .btn{padding:6px 9px;font-size:12px}
+  .sortsel{padding:6px 7px;font-size:12px;max-width:9.5em}
+  .seg-btn{padding:5px 9px;font-size:12px}
+
+  .player{padding:8px 12px;gap:10px}
+  .vol{display:none}            /* phones have hardware volume */
+
+  main{padding:12px 12px 96px}
+
+  .drawer{width:100vw}
+  .pop.account{width:min(330px,94vw)}
+  .inspector{width:94vw;max-height:88vh}
+}
+
+/* ---------- touch ----------
+   A finger dragging across a tile should scroll the page, not pick the tile up,
+   so placing and resizing are left to a mouse. The board is for reading on a
+   phone and arranging at a desk. */
+@media (pointer:coarse){
+  .block{cursor:default;touch-action:auto}
+  .hnd{display:none}
+  .block .tools button{width:30px;height:30px}   /* fingers need a bigger target */
+  /* Nothing sits on the artwork uninvited — not the source, the date, or the
+     rating. There is no hover on a touch screen, so pressing a tile is what
+     brings them in. */
+  .block.is-card .poster-t,
+  .block.is-card .poster-s,
+  .block.is-card .poster-r{opacity:1}
+  .block .cap,
+  .block .badge,
+  .block .daytag,
+  .block .rating{opacity:0}
+  .block:active .cap,
+  .block:active .badge,
+  .block:active .daytag,
+  .block:active .rating{opacity:1}
+}
+
+/* tags in the details box: each one a chip you can take off, and a box to add
+   another underneath */
+.tagfield{display:flex;flex-direction:column;gap:7px}
+.tagset{display:flex;flex-wrap:wrap;gap:6px}
+.tagchip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 6px 4px 9px;border:1px solid var(--line);border-radius:999px;
+  background:var(--bg-2);color:var(--ink-2);font-size:11.5px;line-height:1;
+}
+.tagchip button{
+  width:15px;height:15px;border-radius:50%;border:0;background:transparent;
+  color:var(--ink-3);font-size:9px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.tagchip button:hover{background:#e2725b;color:#fff}
+
+/* "All" in the month jump: every month at once, set apart from the twelve */
+.pop-all-row{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.pop-all{
+  width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;
+  background:transparent;color:var(--ink-2);font-size:13px;cursor:pointer;
+}
+.pop-all:hover{background:var(--bg-2);color:var(--ink)}
+.pop-all.is-on{border-color:var(--accent);color:var(--accent)}
+
+/* the tag filter: one switch per tag, with how many carry it */
+#tagPop{min-width:220px;max-width:280px}
+.tagrows{display:flex;flex-direction:column;gap:2px;max-height:46vh;overflow:auto}
+.tagrow{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:6px 8px;border-radius:8px;font-size:12.5px;color:var(--ink);cursor:pointer;
+}
+.tagrow:hover{background:var(--bg-2)}
+.tagrow-name{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tagrow input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex:none}
+.tagrow-count{color:var(--ink-3);font-size:11px;font-variant-numeric:tabular-nums;flex:none}
+#openTags.is-on{border-color:var(--accent);color:var(--accent)}

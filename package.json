@@ -1,0 +1,16 @@
+{
+  "name": "journal-jack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A month-at-a-time visual journal",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@vercel/blob": "^2.3.0"
+  }
+}

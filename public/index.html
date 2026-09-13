@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>journal.jack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="banner" class="banner" hidden></div>
+
+<header class="topbar">
+  <div class="brand">journal<em>.jack</em></div>
+
+  <div class="monthnav">
+    <button class="icon" id="prevMonth" title="Previous month (←)">‹</button>
+    <button class="month-label" id="monthLabel" title="Jump to month">
+      <span id="monthName">Month</span><span class="yr" id="monthYear">0000</span>
+    </button>
+    <button class="icon" id="nextMonth" title="Next month (→)">›</button>
+  </div>
+
+  <div class="actions">
+    <div class="seg" id="viewSeg">
+      <button class="seg-btn is-on" data-view="grid">Grid</button>
+      <button class="seg-btn" data-view="calendar">Calendar</button>
+    </div>
+    <select class="sortsel" id="sortSel" title="Order">
+      <option value="manual">Custom order</option>
+      <option value="date">Oldest first</option>
+      <option value="-date">Newest first</option>
+      <option value="-rating">Highest rated</option>
+      <option value="title">Title A–Z</option>
+      <option value="source">By tag</option>
+    </select>
+    <button class="btn" id="resetOrder" title="Repack this month's tiles in order. Sizes you set by hand are kept." hidden>Reset layout</button>
+    <button class="btn" id="openTags" title="Show or hide items by tag">Tags</button>
+    <button class="btn" id="addPhotos">＋ Media</button>
+    <button class="btn" id="addWidget">Widget</button>
+    <button class="btn" id="openSync">Sync<span class="busy-dot" id="syncBusy" hidden></span></button>
+    <button class="btn" id="openAccount">Sign in</button>
+    <button class="icon" id="openMenu" title="More">⋯</button>
+  </div>
+</header>
+
+<!-- month song -->
+<div class="player" id="player">
+  <button class="play" id="playBtn" title="Play / pause">▶</button>
+  <div class="track">
+    <div class="track-top">
+      <span class="track-name" id="trackName">No song for this month</span>
+      <span class="track-time" id="trackTime">0:00</span>
+    </div>
+    <div class="scrub" id="scrub"><div class="scrub-fill" id="scrubFill"></div></div>
+  </div>
+  <label class="vol" title="Volume">
+    <input type="range" id="vol" min="0" max="1" step="0.01" value="0.85" />
+  </label>
+  <button class="icon ghost" id="autoplayBtn" title="Autoplay the month's song" aria-pressed="false">⭮</button>
+  <button class="btn ghost" id="songBtn">Set song</button>
+  <button class="icon ghost" id="songClear" title="Remove song" hidden>✕</button>
+  <audio id="audio"></audio>
+</div>
+
+<main id="stage">
+  <section id="gridView" class="grid"></section>
+
+  <section id="calendarView" class="cal" hidden>
+    <div class="cal-head" id="calHead"></div>
+    <div class="cal-body" id="calBody"></div>
+    <div class="tray">
+      <div class="tray-label">Unscheduled — drag onto a day</div>
+      <div class="tray-items" id="trayItems"></div>
+    </div>
+  </section>
+</main>
+
+<!-- inspector -->
+<aside class="inspector" id="inspector" hidden></aside>
+
+<!-- sync drawer -->
+<aside class="drawer" id="syncDrawer" hidden>
+  <div class="drawer-head">
+    <h2>Sync services</h2>
+    <button class="icon" data-close="syncDrawer">✕</button>
+  </div>
+  <div class="drawer-body" id="syncBody"></div>
+</aside>
+
+<!-- month jump -->
+<div class="pop" id="monthPop" hidden>
+  <div class="pop-head">
+    <button class="icon" id="popPrevYear">‹</button>
+    <span id="popYear">0000</span>
+    <button class="icon" id="popNextYear">›</button>
+  </div>
+  <div class="pop-grid" id="popGrid"></div>
+  <div class="pop-all-row" id="popAll"></div>
+</div>
+
+<!-- account -->
+<div class="pop account" id="accountPop" hidden></div>
+
+<!-- overflow menu -->
+<div class="pop menu" id="menuPop" hidden>
+  <button data-act="colours">Colours for this year…</button>
+  <button data-act="theme">Toggle light / dark</button>
+  <button data-act="export">Export journal (.json)</button>
+  <button data-act="import">Import journal…</button>
+  <button data-act="sync">Sync with account (merge)</button>
+  <button data-act="files">Upload missing files</button>
+  <button data-act="posters">Find missing posters</button>
+  <button data-act="dedupe">Merge duplicate imports</button>
+  <button data-act="sample">Load a sample month</button>
+  <button data-act="clear" class="danger">Erase this month</button>
+</div>
+
+<!-- tag filter -->
+<div class="pop" id="tagPop" hidden></div>
+
+<!-- add media: from this computer, or by link -->
+<div class="pop" id="mediaPop" hidden></div>
+
+<!-- per-month colours -->
+<div class="pop" id="colourPop" hidden></div>
+
+<!-- widget picker -->
+<div class="pop menu" id="widgetPop" hidden></div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="toasts" id="toasts"></div>
+
+<input type="file" id="filePicker" accept="image/*,video/*" multiple hidden />
+<input type="file" id="songPicker" accept="audio/*" hidden />
+<input type="file" id="jsonPicker" accept="application/json,.json" hidden />
+
+<script src="js/db.js"></script>
+<script src="js/account.js"></script>
+<script src="js/connectors.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
