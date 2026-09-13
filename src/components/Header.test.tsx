@@ -13,14 +13,28 @@ const view = (over: Partial<ViewState> = {}): ViewState => ({
 
 type Span = { first?: string; last?: string };
 
-function setup(over: Partial<ViewState> = {}, span: Span = { first: '2022', last: '2026' }) {
+function setup(
+  over: Partial<ViewState> = {},
+  span: Span = { first: '2022', last: '2026' },
+  state: { signedIn?: boolean; busy?: boolean } = {},
+) {
   const handlers = {
     onShift: vi.fn(),
     onView: vi.fn(),
     onSort: vi.fn(),
     onOpenMonths: vi.fn(),
+    onOpenAccount: vi.fn(),
+    onSync: vi.fn(),
   };
-  render(<Header view={view(over)} span={span} {...handlers} />);
+  render(
+    <Header
+      view={view(over)}
+      span={span}
+      signedIn={state.signedIn ?? false}
+      busy={state.busy ?? false}
+      {...handlers}
+    />,
+  );
   return { user: userEvent.setup(), ...handlers };
 }
 
@@ -102,13 +116,48 @@ describe('the parts that are not ported yet', () => {
 
   it('cannot be clicked into doing nothing', async () => {
     const { user } = setup();
-    const signIn = screen.getByRole('button', { name: 'Sign in' });
-    await user.click(signIn);
+    const media = screen.getByRole('button', { name: '＋ Media' });
+    await user.click(media);
     // nothing to assert about a result: the point is that the click is refused
-    expect(signIn).toBeDisabled();
+    expect(media).toBeDisabled();
   });
 
   it('names exactly what is still missing, so the list cannot rot quietly', () => {
-    expect(NOT_YET).toEqual(['＋ Media', 'Widget', 'Sync', 'Sign in']);
+    expect(NOT_YET).toEqual(['＋ Media', 'Widget']);
+  });
+});
+
+describe('the account', () => {
+  it('offers a way in when nobody is signed in', async () => {
+    const { user, onOpenAccount } = setup();
+    const button = screen.getByRole('button', { name: 'Sign in' });
+    expect(button).toBeEnabled();
+    await user.click(button);
+    expect(onOpenAccount).toHaveBeenCalledOnce();
+  });
+
+  it('says Account once you are in', () => {
+    setup({}, undefined, { signedIn: true });
+    expect(screen.getByRole('button', { name: 'Account' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument();
+  });
+
+  /* Syncing without an account would do nothing, so it says so by being
+     unavailable rather than by failing after you press it. */
+  it('cannot sync while signed out', () => {
+    setup();
+    expect(screen.getByRole('button', { name: 'Sync' })).toBeDisabled();
+  });
+
+  it('syncs when asked', async () => {
+    const { user, onSync } = setup({}, undefined, { signedIn: true });
+    await user.click(screen.getByRole('button', { name: 'Sync' }));
+    expect(onSync).toHaveBeenCalledOnce();
+  });
+
+  it('will not start a second sync on top of the first', () => {
+    setup({}, undefined, { signedIn: true, busy: true });
+    const button = screen.getByRole('button', { name: 'Syncing…' });
+    expect(button).toBeDisabled();
   });
 });

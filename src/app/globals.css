@@ -108,3 +108,53 @@ body {
     opacity: 1;
   }
 }
+
+/* The two shapes every panel is built from. Tailwind can express these inline,
+   but a form with eight of them becomes unreadable, and a field that looks
+   different in two panels is a bug nobody files. */
+.field {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  color: var(--ink);
+  outline: none;
+}
+.field:focus {
+  border-color: var(--accent);
+}
+
+.btn {
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.btn.ghost {
+  background: none;
+}
+
+/* 16px on a phone stops iOS zooming the page in the moment you tap a field */
+@media (max-width: 640px) {
+  .field {
+    padding: 11px 12px;
+    font-size: 16px;
+  }
+  .btn {
+    padding: 11px 14px;
+    font-size: 14px;
+  }
+}
