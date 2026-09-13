@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { effectiveSort, everyBlock, groupByMonth, journalSpan, orderedBlocks } from './sort';
+import {
+  effectiveSort,
+  everyBlock,
+  groupByMonth,
+  homeMonths,
+  journalSpan,
+  orderedBlocks,
+} from './sort';
 import type { Block, JournalDoc } from './types';
 
 const b = (id: string, over: Partial<Block> = {}): Block => ({ id, kind: 'media', title: id, ...over });
@@ -141,5 +148,49 @@ describe('choosing the order', () => {
   it('groups by month only in the everything view', () => {
     expect(effectiveSort('month', true)).toBe('month');
     expect(effectiveSort('month', false)).toBe('-date');
+  });
+});
+
+/* A photo dropped into a month carries no date of its own. It still belongs to
+   that month — that is where you put it — so it is read as the 1st of it rather
+   than being swept into a heap at the end of the journal. */
+describe('the things filed in a month without a date of their own', () => {
+  const b = (id: string, date: string | null = null): Block => ({ id, kind: 'media', title: id, date });
+
+  const doc = (): JournalDoc =>
+    ({
+      months: {
+        '2020-02': { blocks: [b('hollow-knight'), b('dated', '2020-02-14')] },
+        '2024-11': { blocks: [b('a-photo')] },
+      },
+    }) as unknown as JournalDoc;
+
+  it('knows which month each block is filed under', () => {
+    expect(homeMonths(doc()).get('hollow-knight')).toBe('2020-02');
+    expect(homeMonths(doc()).get('a-photo')).toBe('2024-11');
+  });
+
+  it('reads an undated block as the 1st of the month it is filed in', () => {
+    const d = doc();
+    const groups = groupByMonth(everyBlock(d), homeMonths(d));
+    expect(groups.map((g) => g.label)).toEqual(['February 2020', 'November 2024']);
+    expect(groups[0].blocks.map((x) => x.id)).toEqual(['hollow-knight', 'dated']);
+  });
+
+  it('leaves no "No date" heap once everything has a month', () => {
+    const d = doc();
+    expect(groupByMonth(everyBlock(d), homeMonths(d)).map((g) => g.key)).not.toContain('');
+  });
+
+  /* Only what has no month at all, which the everything view never produces. */
+  it('still collects the genuinely homeless at the end', () => {
+    const groups = groupByMonth([b('nowhere'), b('dated', '2020-05-02')], new Map());
+    expect(groups.map((g) => g.label)).toEqual(['May 2020', 'No date']);
+  });
+
+  it('does not write the borrowed date onto the block', () => {
+    const d = doc();
+    groupByMonth(everyBlock(d), homeMonths(d));
+    expect(d.months['2020-02'].blocks[0].date).toBeNull();
   });
 });

@@ -34,8 +34,8 @@ const handlers = {
   onRefuse: vi.fn(),
 };
 
-const draw = (blocks: Block[], empty?: React.ReactNode) =>
-  render(<MonthSections blocks={blocks} empty={empty} {...handlers} />);
+const draw = (blocks: Block[], empty?: React.ReactNode, home?: Map<string, string>) =>
+  render(<MonthSections blocks={blocks} home={home} empty={empty} {...handlers} />);
 
 describe('the journal read by month', () => {
   it('gives each month a heading of its own', () => {
@@ -82,5 +82,42 @@ describe('the journal read by month', () => {
     draw([], <p>Nothing in the journal yet</p>);
     expect(screen.getByText('Nothing in the journal yet')).toBeInTheDocument();
     expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+  });
+});
+
+/* A photo has no date unless you set one, but it was dropped into a month and
+   that is where it should be read. Before this it fell to the bottom of the
+   journal into a "No date" heap, miles from the month it lives in. */
+describe('things filed in a month without a date of their own', () => {
+  it('draws them under the month they were filed in', () => {
+    draw(
+      [film('hollow-knight', null), film('dated', '2020-02-14')],
+      undefined,
+      new Map([['hollow-knight', '2020-02']]),
+    );
+
+    const february = screen.getByRole('heading', { name: /February 2020/ }).parentElement!;
+    expect(within(february).getByText('hollow-knight')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /No date/ })).not.toBeInTheDocument();
+  });
+
+  it('counts them in that month', () => {
+    draw([film('a', null), film('b', null)], undefined, new Map([
+      ['a', '2020-02'],
+      ['b', '2020-02'],
+    ]));
+    expect(screen.getByRole('heading', { name: /February 2020/ }).textContent).toMatch(/2$/);
+  });
+});
+
+/* A heading has to carry over a wall of artwork, which the first attempt at
+   26px in a single weight did not. */
+describe('the heading over each month', () => {
+  it('is set large and heavy enough to read as a divider', () => {
+    draw([film('a', '2020-05-02')]);
+    const heading = screen.getByRole('heading', { name: /May 2020/ });
+    const size = Number(heading.className.match(/text-\[(\d+)px\]/)?.[1]);
+    expect(size).toBeGreaterThanOrEqual(34);
+    expect(heading.className).toMatch(/font-(semibold|bold)/);
   });
 });

@@ -65,6 +65,15 @@ export function orderedBlocks(blocks: Block[], mode: SortMode): Block[] {
   });
 }
 
+/** Which month each block is filed under — its id against 'YYYY-MM'. */
+export function homeMonths(doc: JournalDoc): Map<string, string> {
+  const home = new Map<string, string>();
+  for (const [key, m] of Object.entries(doc.months)) {
+    for (const b of m.blocks ?? []) home.set(b.id, key);
+  }
+  return home;
+}
+
 /** Every block in the journal, oldest month first. */
 export function everyBlock(doc: JournalDoc): Block[] {
   const out: Block[] = [];
@@ -103,15 +112,25 @@ export interface MonthGroup {
  * The whole journal as a run of months, each under its own heading.
  *
  * Reads forwards — oldest month first, and oldest first inside each one — so
- * scrolling down is scrolling through time. Something with no date has no month
- * to sit under, but hiding it would be worse than putting it at the end where
- * it can be found and given one.
+ * scrolling down is scrolling through time.
+ *
+ * A photo dropped into a month usually carries no date of its own, but it is
+ * not homeless: you filed it under that month, so it reads as the 1st of that
+ * month and sits with the rest of it rather than in a heap at the end. Only
+ * something with no month at all — which the everything view never produces —
+ * falls through to "No date", where it can be found and given one.
  */
-export function groupByMonth(blocks: Block[]): MonthGroup[] {
+export function groupByMonth(blocks: Block[], home?: Map<string, string>): MonthGroup[] {
+  const filed = (b: Block): string => {
+    if (b.date) return b.date;
+    const month = home?.get(b.id);
+    return month ? month + '-01' : '';
+  };
+
   const byMonth = new Map<string, Block[]>();
 
   for (const b of blocks) {
-    const key = b.date ? b.date.slice(0, 7) : '';
+    const key = filed(b).slice(0, 7);
     const list = byMonth.get(key);
     if (list) list.push(b);
     else byMonth.set(key, [b]);
@@ -123,7 +142,7 @@ export function groupByMonth(blocks: Block[]): MonthGroup[] {
     return {
       key,
       label: `${MONTHS[month - 1]} ${year}`,
-      blocks: [...byMonth.get(key)!].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')),
+      blocks: [...byMonth.get(key)!].sort((a, b) => filed(a).localeCompare(filed(b))),
     };
   });
 

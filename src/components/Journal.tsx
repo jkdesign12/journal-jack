@@ -13,7 +13,14 @@ import { gridMetrics, unitsOf } from '@/lib/journal/layout';
 import { applyImport, mergeDuplicates, purgeFeedEntries, attachReviews } from '@/lib/journal/importing';
 import { monthStyle } from '@/lib/journal/colours';
 import { MONTHS, cursorParts, shiftMonth } from '@/lib/journal/dates';
-import { effectiveSort, everyBlock, journalSpan, orderedBlocks, type SortMode } from '@/lib/journal/sort';
+import {
+  effectiveSort,
+  everyBlock,
+  homeMonths,
+  journalSpan,
+  orderedBlocks,
+  type SortMode,
+} from '@/lib/journal/sort';
 import { hiddenTagSet, tagVisible } from '@/lib/journal/tags';
 import type { Block, ImportedItem, Song } from '@/lib/journal/types';
 
@@ -500,6 +507,7 @@ export function Journal() {
           byMonth ? (
           <MonthSections
             blocks={blocks}
+            home={homeMonths(doc)}
             onOpen={setOpenId}
             onRemove={(id) => store.remove(id)}
             onCycleSize={(id) => {

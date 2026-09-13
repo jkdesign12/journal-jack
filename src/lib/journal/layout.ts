@@ -15,7 +15,7 @@ import type { Block, Size, StoredSize } from './types';
 export const WIDTH_UNITS: Record<Size, number> = { sm: 4, md: 8, lg: 12 };
 export const TARGET_UNIT = 46; // preferred size of one little square, in px
 export const MIN_UNITS = 2; // nothing smaller than half a cover
-export const HEADROOM = 4; // spare rows kept below the lowest tile
+export const HEADROOM = 4; // spare rows kept below the lowest tile of a board you can drop onto
 
 /** 'wide' and 'tall' are what much older saves hold. */
 export function sizeOf(b: Pick<Block, 'size'>): Size {
@@ -197,9 +197,13 @@ export function layout(
     settle(items, opts.lastTouched);
   }
 
+  /* The spare rows are somewhere to drop a tile below the last one, so they only
+     earn their height on a board you can drop onto. A sorted board ends at its
+     last tile — anything past that is a hole in the page, and in the month view
+     it was a hole under every single heading. */
   let lowest = 0;
   for (const it of items) lowest = Math.max(lowest, it.gy + it.h);
-  return { items, rows: lowest + HEADROOM };
+  return { items, rows: lowest + (opts.manual ? HEADROOM : 0) };
 }
 
 /* Height ÷ width for a block before its image has loaded. A film poster is

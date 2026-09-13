@@ -170,3 +170,22 @@ describe('laying out a whole board', () => {
     expect(rows).toBeGreaterThan(4);
   });
 });
+
+/* The spare rows under a board are somewhere to drop a tile. A sorted board
+   takes no drops, so those rows are just a hole in the page — which is what
+   put a screenful of nothing under every heading in the month view. */
+describe('the room left under a board', () => {
+  const m = gridMetrics(1000)!;
+  const block = (id: string, over: Partial<Block> = {}): Block => ({ id, kind: 'media', ...over });
+  const one = [block('a', { uw: 4, uh: 4 })];
+
+  it('is there on a board you can drop onto', () => {
+    const { items, rows } = layout(one, m, { manual: true });
+    expect(rows).toBeGreaterThan(items[0].gy + items[0].h);
+  });
+
+  it('is not there on a sorted one, which ends at its last tile', () => {
+    const { items, rows } = layout(one, m, { manual: false });
+    expect(rows).toBe(items[0].gy + items[0].h);
+  });
+});

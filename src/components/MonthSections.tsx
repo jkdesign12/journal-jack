@@ -13,6 +13,7 @@ import { Board } from './Board';
  */
 export function MonthSections({
   blocks,
+  home,
   onOpen,
   onRemove,
   onCycleSize,
@@ -25,6 +26,8 @@ export function MonthSections({
   empty,
 }: {
   blocks: Block[];
+  /** Which month each block is filed under, for the ones carrying no date. */
+  home?: Map<string, string>;
   onOpen: (id: string) => void;
   onRemove: (id: string) => void;
   onCycleSize: (id: string) => void;
@@ -36,16 +39,16 @@ export function MonthSections({
   renderWidget?: (block: Block) => React.ReactNode;
   empty?: React.ReactNode;
 }) {
-  const groups = groupByMonth(blocks);
+  const groups = groupByMonth(blocks, home);
   if (!groups.length) return <>{empty}</>;
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-10">
       {groups.map((group) => (
         <section key={group.key || 'undated'}>
-          <h2 className="sticky top-[72px] z-20 mb-3 w-fit rounded-lg bg-bg/85 py-1 pr-3 font-serif text-[26px] leading-none backdrop-blur-md max-[640px]:static max-[640px]:text-[22px]">
+          <h2 className="sticky top-[72px] z-20 mb-3 w-fit rounded-lg bg-bg/85 py-1.5 pr-3 font-serif text-[38px] font-semibold leading-none backdrop-blur-md max-[640px]:static max-[640px]:text-[29px]">
             {group.label}
-            <span className="ml-2.5 align-middle text-[11px] font-sans tracking-[0.08em] text-ink-3">
+            <span className="ml-3 align-middle text-[12px] font-sans font-medium tracking-[0.08em] text-ink-3">
               {group.blocks.length}
             </span>
           </h2>
