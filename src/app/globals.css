@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+/* The palette is CSS custom properties rather than Tailwind colours, because a
+   year of the journal can set its own background and text colour at runtime.
+   Everything else the interface needs — panels, borders, the quieter greys — is
+   mixed from those two, so a year stays coherent whatever pair you pick and
+   readable text is never left sitting on a background it cannot be seen against.
+
+   Those two properties are written on the root element while you are looking at
+   a year, which beats the light/dark palette below without replacing it: clear
+   them and the theme comes straight back. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --accent: #e2404a;
+  --brand: #ff3b47;
+  --bg: #0e0e10;
+  --bg-2: #151518;
+  --panel: #1a1a1e;
+  --line: #2a2a30;
+  --ink: #f2efe9;
+  --ink-2: #a2a0a8;
+  --ink-3: #6c6a73;
+  --shadow: 0 10px 30px rgb(0 0 0 / 0.35);
 }
 
+[data-theme='light'] {
+  --accent: #c8202d;
+  --brand: #d81f2a;
+  --bg: #f6f2ea;
+  --bg-2: #efe9de;
+  --panel: #fffdf8;
+  --line: #e0d7c7;
+  --ink: #201d18;
+  --ink-2: #6b6357;
+  --ink-3: #9c9285;
+  --shadow: 0 10px 30px rgb(60 45 20 / 0.1);
+}
+
+/* Hand the same values to Tailwind, so `bg-panel` and `text-ink-2` mean exactly
+   what the journal means by them and there is only one palette to change. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-brand: var(--brand);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-serif: var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --shadow-tile: var(--tile-shadow, none);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent);
+  color: #141414;
+}
+
+/* The board draws itself in units rather than in a grid template: a tile is
+   placed absolutely at a whole number of squares, which is what lets one shove
+   the others aside without the rest of the page moving. */
+.board {
+  position: relative;
+  width: 100%;
+}
+
+.tile {
+  position: absolute;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--bg-2);
+  box-shadow: var(--tile-shadow, none);
+  transition:
+    left 0.18s ease,
+    top 0.18s ease,
+    width 0.18s ease,
+    height 0.18s ease;
+}
+
+/* No hover on a touch screen, so pressing a tile is what brings its details in. */
+@media (hover: hover) {
+  .tile .reveal {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .tile:hover .reveal {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .tile .reveal {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .tile:active .reveal {
+    opacity: 1;
+  }
 }
