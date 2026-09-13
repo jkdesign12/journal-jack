@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { colourYear, hexToRgb, mixHex, monthStyle, normaliseHex, rgbToHex } from './colours';
+import { colourYear, hexToRgb, hueOf, mixHex, monthStyle, normaliseHex, rgbToHex } from './colours';
 import type { JournalDoc } from './types';
 
 const doc = (over: Partial<JournalDoc> = {}): JournalDoc => ({ months: {}, ...over });
@@ -102,5 +102,23 @@ describe('the colours a month is drawn in', () => {
     const palette = colourYear(d, '2026-09');
     palette.bg = '#abcdef';
     expect(d.yearColours!['2026'].bg).toBe('#abcdef');
+  });
+});
+
+describe('the colour a tile falls back to', () => {
+  it('is the same every time for the same title, so it does not flicker', () => {
+    expect(hueOf('Perfect Blue')).toBe(hueOf('Perfect Blue'));
+  });
+
+  it('differs between titles, so a board of placeholders is readable', () => {
+    expect(hueOf('Perfect Blue')).not.toBe(hueOf('Tokyo Godfathers'));
+  });
+
+  it('always lands on a real hue, even with nothing to go on', () => {
+    for (const title of ['', undefined, 'a', '日本語', '🎬']) {
+      const hue = hueOf(title);
+      expect(hue).toBeGreaterThanOrEqual(0);
+      expect(hue).toBeLessThan(360);
+    }
   });
 });

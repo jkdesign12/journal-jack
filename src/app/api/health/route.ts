@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { connectionString } from '@/lib/server/db';
+import { usingPostgres } from '@/lib/server/backend';
 
 /* One page that says whether this deployment can actually keep anything, and
    what to do about it if not. */
 export async function GET() {
-  const db = connectionString();
+  const postgres = usingPostgres();
   const blobAuth = process.env.BLOB_READ_WRITE_TOKEN
     ? 'read-write token'
     : process.env.BLOB_STORE_ID || process.env.VERCEL_OIDC_TOKEN
@@ -12,14 +12,20 @@ export async function GET() {
       : null;
 
   return NextResponse.json({
-    database: db ? 'connected' : 'MISSING — accounts and sync cannot work',
-    fileStorage: blobAuth ? `connected (${blobAuth})` : 'MISSING — photos and songs cannot be saved',
-    clientUploads: process.env.BLOB_READ_WRITE_TOKEN
-      ? 'available'
-      : 'unavailable — big files rely on resizing first',
+    storage: postgres ? 'Postgres and a blob store' : 'SQLite and files under ./data',
+    database: postgres ? 'connected' : 'on this machine',
+    fileStorage: postgres
+      ? blobAuth
+        ? `connected (${blobAuth})`
+        : 'MISSING — photos and songs cannot be saved'
+      : 'on this machine',
+    clientUploads:
+      postgres && !process.env.BLOB_READ_WRITE_TOKEN
+        ? 'unavailable — big files rely on resizing first'
+        : 'available',
     whatToDo:
-      db && blobAuth
+      !postgres || blobAuth
         ? 'Nothing: storage is set up.'
-        : 'In Vercel open this project, go to Storage, and connect what is missing, then redeploy.',
+        : 'In Vercel open this project, go to Storage, connect a Blob store, then redeploy.',
   });
 }

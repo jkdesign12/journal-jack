@@ -22,6 +22,16 @@ export async function GET(_req: Request, { params }: Params) {
     });
   }
 
+  // a file kept on this machine: hand the bytes straight over
+  if ('buf' in blob) {
+    return new NextResponse(new Uint8Array(blob.buf), {
+      headers: {
+        'Content-Type': blob.mime || 'application/octet-stream',
+        'Cache-Control': 'private, max-age=31536000',
+      },
+    });
+  }
+
   /* a private blob: unreachable without credentials, so it is streamed through
      here, and the signed-in check above is what guards it */
   return new NextResponse(blob.stream, {

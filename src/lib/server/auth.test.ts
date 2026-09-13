@@ -1,64 +1,61 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import type { Backend } from './backend/types';
+import type { JournalDoc } from '@/lib/journal/types';
 
-/* A stand-in for Postgres: the same five statements auth.ts actually sends,
-   answered out of two Maps. Faking the driver instead would prove only that the
-   functions were called; this way the logic runs for real — the duplicate
-   check, the session expiry, the hashing — against something that behaves like
-   a table. */
+/* A stand-in for the store: two Maps behind the same interface the real ones
+   implement. Faking the driver would prove only that functions were called;
+   this way the logic runs for real — the duplicate check, the session expiry,
+   the hashing — against something that behaves like a database. */
 const users = new Map<string, { id: string; email: string; hash: string; salt: string }>();
 const sessions = new Map<string, { user_id: string; created: number }>();
 
-function fakeSql(strings: TemplateStringsArray, ...values: unknown[]): Promise<unknown[]> {
-  const text = strings.join('?').replace(/\s+/g, ' ').trim();
-
-  if (text.startsWith('CREATE TABLE')) return Promise.resolve([]);
-
-  if (text.startsWith('SELECT id FROM users WHERE email')) {
-    const found = users.get(String(values[0]));
-    return Promise.resolve(found ? [{ id: found.id }] : []);
-  }
-
-  if (text.startsWith('SELECT * FROM users WHERE email')) {
-    const found = users.get(String(values[0]));
-    return Promise.resolve(found ? [found] : []);
-  }
-
-  if (text.startsWith('INSERT INTO users')) {
-    const [id, email, hash, salt] = values as string[];
-    users.set(email, { id, email, hash, salt });
-    return Promise.resolve([]);
-  }
-
-  if (text.startsWith('INSERT INTO sessions')) {
-    const [token, userId, created] = values as [string, string, number];
+const fake: Backend = {
+  kind: 'sqlite',
+  async userByEmail(email) {
+    return users.get(email) ?? null;
+  },
+  async createUser(row) {
+    users.set(row.email, { id: row.id, email: row.email, hash: row.hash, salt: row.salt });
+  },
+  async userCount() {
+    return users.size;
+  },
+  async createSession(token, userId, created) {
     sessions.set(token, { user_id: userId, created });
-    return Promise.resolve([]);
-  }
-
-  if (text.startsWith('DELETE FROM sessions')) {
-    sessions.delete(String(values[0]));
-    return Promise.resolve([]);
-  }
-
-  if (text.startsWith('SELECT u.id, u.email, s.created FROM sessions')) {
-    const session = sessions.get(String(values[0]));
-    if (!session) return Promise.resolve([]);
+  },
+  async sessionOwner(token) {
+    const session = sessions.get(token);
+    if (!session) return null;
     const owner = [...users.values()].find((u) => u.id === session.user_id);
-    if (!owner) return Promise.resolve([]);
-    return Promise.resolve([{ id: owner.id, email: owner.email, created: session.created }]);
-  }
+    return owner ? { id: owner.id, email: owner.email, created: session.created } : null;
+  },
+  async deleteSession(token) {
+    sessions.delete(token);
+  },
+  async getJournal() {
+    return { doc: null as JournalDoc | null, version: 0, updated: 0 };
+  },
+  async putJournal() {
+    return { conflict: false, version: 1, updated: 0 };
+  },
+  async putBlob() {},
+  async recordBlob() {},
+  async getBlob() {
+    return null;
+  },
+  async listBlobs() {
+    return [];
+  },
+  async artLookup() {
+    return undefined;
+  },
+  async artStore() {},
+};
 
-  if (text.startsWith('SELECT COUNT(*)')) return Promise.resolve([{ c: users.size }]);
-
-  throw new Error('the fake database was asked something it does not know: ' + text);
-}
-
-vi.mock('./db', () => ({
-  ready: async () => {},
-  sql: () => fakeSql,
-  rows: async (query: Promise<unknown>) => query,
-  hasDatabase: () => true,
-  connectionString: () => 'postgres://fake',
+vi.mock('./backend', () => ({
+  backend: async () => fake,
+  usingPostgres: () => false,
+  connectionString: () => null,
 }));
 
 const {

@@ -2,37 +2,46 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Block } from '@/lib/journal/types';
-import { gridMetrics, layout, type Metrics } from '@/lib/journal/layout';
+import { gridMetrics, layout, unitsOf, type Item, type Metrics } from '@/lib/journal/layout';
+import { coarsePointer, commitMove, dropAt, resizeTo, type Corner } from '@/lib/client/placing';
 import { Tile } from './Tile';
 
 /**
- * The board measures itself and lays the tiles out in units, rather than
- * handing the work to CSS grid: a tile has to be able to sit exactly where you
- * put it and shove its neighbours down, which a grid template cannot express.
+ * The board measures itself and lays the tiles out in units, rather than handing
+ * the work to CSS grid: a tile has to be able to sit exactly where you put it
+ * and shove its neighbours down, which a grid template cannot express.
  */
 export function Board({
   blocks,
   manual,
-  lastTouched,
   onOpen,
+  onRemove,
+  onCycleSize,
+  onChange,
+  onRefuse,
   empty,
+  renderWidget,
 }: {
   blocks: Block[];
   manual: boolean;
-  lastTouched?: string | null;
   onOpen: (id: string) => void;
+  onRemove: (id: string) => void;
+  onCycleSize: (id: string) => void;
+  onChange: () => void;
+  onRefuse: (message: string) => void;
   empty?: React.ReactNode;
+  renderWidget?: (block: Block) => React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [touched, setTouched] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
 
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-
     const measure = () => setMetrics(gridMetrics(node.clientWidth));
     measure();
-
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
@@ -46,8 +55,89 @@ export function Board({
     );
   }
 
-  const placed = metrics ? layout(blocks, metrics, { manual, lastTouched }) : null;
+  const placed = metrics ? layout(blocks, metrics, { manual, lastTouched: touched }) : null;
   const byId = new Map(blocks.map((b) => [b.id, b]));
+
+  /* Placing and resizing stay on the mouse: on a touch screen a drag across a
+     tile means "scroll the page", and taking that away to move a tile would
+     make the board unusable to read. */
+  const startPlacing = (e: React.PointerEvent, block: Block, item: Item) => {
+    if (e.button !== 0 || coarsePointer() || !metrics || !placed) return;
+    if ((e.target as HTMLElement).closest('input,textarea,select,button,a')) return;
+    if (!manual) {
+      onRefuse(
+        blocks.length && !manual
+          ? 'Switch the order dropdown to "Custom order" to move tiles'
+          : 'Tiles are arranged inside their own month — open a month to move them',
+      );
+      return;
+    }
+    e.preventDefault();
+
+    const board = ref.current!.getBoundingClientRect();
+    const offX = e.clientX - board.left - item.gx * metrics.pitch;
+    const offY = e.clientY - board.top - item.gy * metrics.pitch;
+    setDragging(block.id);
+
+    const move = (ev: PointerEvent) => {
+      const to = dropAt(ev.clientX - board.left - offX, ev.clientY - board.top - offY, metrics, item.w);
+      item.gx = to.gx;
+      item.gy = to.gy;
+      setTouched(block.id);
+      onChange();
+    };
+
+    const done = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', done);
+      setDragging(null);
+      const to = dropAt(ev.clientX - board.left - offX, ev.clientY - board.top - offY, metrics, item.w);
+      commitMove(placed.items, item, to, byId);
+      onChange();
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', done);
+  };
+
+  const startResizing = (e: React.PointerEvent, block: Block, item: Item, corner: Corner) => {
+    if (e.button !== 0 || coarsePointer() || !metrics) return;
+    e.preventDefault();
+    e.stopPropagation(); // not a placement drag
+    if (!manual) {
+      onRefuse('Switch the order dropdown to "Custom order" to resize tiles');
+      return;
+    }
+
+    const start = { w: item.w, h: item.h, anchorX: item.gx, anchorY: item.gy, units: metrics.units };
+    const from = { x: e.clientX, y: e.clientY };
+
+    const move = (ev: PointerEvent) => {
+      const next = resizeTo(
+        start,
+        corner,
+        Math.round((ev.clientX - from.x) / metrics.pitch),
+        Math.round((ev.clientY - from.y) / metrics.pitch),
+      );
+      Object.assign(item, next);
+      setTouched(block.id);
+      onChange();
+    };
+
+    const done = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', done);
+      // the shape you chose wins over the tile's own proportions from now on
+      block.uw = item.w;
+      block.uh = item.h;
+      block.gx = item.gx;
+      block.gy = item.gy;
+      onChange();
+    };
+
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', done);
+  };
 
   return (
     <div
@@ -60,10 +150,24 @@ export function Board({
             const block = byId.get(item.id);
             if (!block) return null;
             return (
-              <Tile key={item.id} block={block} item={item} metrics={metrics} onOpen={onOpen} />
+              <Tile
+                key={item.id}
+                block={block}
+                item={item}
+                metrics={metrics}
+                dragging={dragging === item.id}
+                onOpen={onOpen}
+                onRemove={onRemove}
+                onCycleSize={onCycleSize}
+                onPointerDown={(e) => startPlacing(e, block, item)}
+                onResizeFrom={(e, corner) => startResizing(e, block, item, corner)}
+                body={renderWidget?.(block)}
+              />
             );
           })
         : null}
     </div>
   );
 }
+
+export { unitsOf };
