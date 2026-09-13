@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "journal", "runtimeExecutable": "node", "runtimeArgs": ["server.js"], "port": 5173 }
+    { "name": "journal", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
   ]
 }
