@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
-import { MonthSections } from './MonthSections';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import { MonthSections, bandAt } from './MonthSections';
 import type { Block } from '@/lib/journal/types';
 
 /* The everything view, read as a run of months rather than one long board. */
@@ -39,9 +39,17 @@ const draw = (
   empty?: React.ReactNode,
   home?: Map<string, string>,
   styleFor?: (monthKey: string) => Record<string, string>,
+  onReading?: (monthKey: string) => void,
 ) =>
   render(
-    <MonthSections blocks={blocks} home={home} styleFor={styleFor} empty={empty} {...handlers} />,
+    <MonthSections
+      blocks={blocks}
+      home={home}
+      styleFor={styleFor}
+      onReading={onReading}
+      empty={empty}
+      {...handlers}
+    />,
   );
 
 describe('the journal read by month', () => {
@@ -173,5 +181,58 @@ describe('a year, in its own colours', () => {
     draw([film('a', '2024-03-02')], undefined, undefined, styleFor);
     expect(band('2024').style.getPropertyValue('--bg')).toBe('');
     expect(band('2024').style.background).toBe('var(--bg)');
+  });
+});
+
+/* The header takes its colours from the year you are looking at. In every other
+   view that is the month in the date control; here scrolling is what changes
+   the year, so the view has to say which band it has reached. Without this the
+   header kept whatever year you entered from — green over a cyan 2023. */
+describe('saying which year is being read', () => {
+  const boxes = (...rows: Array<[string, number, number]>) =>
+    rows.map(([key, top, bottom]) => ({ key, top, bottom }));
+
+  it('is the band the header is sitting over', () => {
+    expect(bandAt(boxes(['2019-01', -900, -10], ['2020-01', -10, 800]))).toBe('2020-01');
+  });
+
+  it('is the first one before you have scrolled anywhere', () => {
+    expect(bandAt(boxes(['2019-01', 300, 1200], ['2020-01', 1200, 2000]))).toBe('2019-01');
+  });
+
+  it('is nothing at all when there is nothing to read', () => {
+    expect(bandAt([])).toBeNull();
+  });
+
+  it('reports the band under the header as the page is scrolled', async () => {
+    const onReading = vi.fn();
+    draw(
+      [film('a', '2019-03-02'), film('b', '2020-04-11')],
+      undefined,
+      undefined,
+      undefined,
+      onReading,
+    );
+
+    const place = (year: string, top: number, bottom: number) =>
+      Object.defineProperty(document.querySelector(`[data-year="${year}"]`)!, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top }),
+      });
+
+    place('2019', -900, -10);
+    place('2020', -10, 800);
+    window.dispatchEvent(new Event('scroll'));
+
+    await waitFor(() => expect(onReading).toHaveBeenLastCalledWith('2020-04'));
+  });
+
+  it('says nothing new while you stay in the same year', async () => {
+    const onReading = vi.fn();
+    draw([film('a', '2019-03-02')], undefined, undefined, undefined, onReading);
+
+    window.dispatchEvent(new Event('scroll'));
+    window.dispatchEvent(new Event('scroll'));
+    await waitFor(() => expect(onReading).toHaveBeenCalledTimes(1));
   });
 });

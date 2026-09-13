@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import type { Block } from '@/lib/journal/types';
 import { groupByMonth, type MonthGroup } from '@/lib/journal/sort';
 import { Board } from './Board';
@@ -27,6 +28,21 @@ export function bandsOf(groups: MonthGroup[]): YearBand[] {
   return bands;
 }
 
+/** Where a band counts as "the one you are reading": just under the header. */
+export const PROBE = 80;
+
+/** Which band the probe line is inside, given where each one currently sits. */
+export function bandAt(
+  boxes: Array<{ key: string; top: number; bottom: number }>,
+  probe = PROBE,
+): string | null {
+  for (const box of boxes) {
+    if (box.top <= probe && box.bottom > probe) return box.key;
+  }
+  // above the first band — nothing has been scrolled to yet, so it is the one
+  return boxes[0]?.key ?? null;
+}
+
 /**
  * The whole journal as a run of months, each under its own heading, on the
  * paper of the year it belongs to.
@@ -41,6 +57,7 @@ export function MonthSections({
   blocks,
   home,
   styleFor,
+  onReading,
   onOpen,
   onRemove,
   onCycleSize,
@@ -57,6 +74,8 @@ export function MonthSections({
   home?: Map<string, string>;
   /** That month's custom properties — its year's colours, if it has any. */
   styleFor?: (monthKey: string) => Record<string, string>;
+  /** The month whose band is under the header, as that changes with scrolling. */
+  onReading?: (monthKey: string) => void;
   onOpen: (id: string) => void;
   onRemove: (id: string) => void;
   onCycleSize: (id: string) => void;
@@ -69,14 +88,18 @@ export function MonthSections({
   empty?: React.ReactNode;
 }) {
   const groups = groupByMonth(blocks, home);
+  const bands = bandsOf(groups);
+  const reading = useReading(bands, onReading);
+
   if (!groups.length) return <>{empty}</>;
 
   return (
     <div className="flex flex-col">
-      {bandsOf(groups).map((band) => (
+      {bands.map((band) => (
         <div
           key={band.year || 'undated'}
           data-year={band.year}
+          ref={reading(band.groups[0].key)}
           /* The year's own palette, set here rather than on the root element:
              in this view several years are on screen at once. Everything inside
              reads these — the tiles, the headings, the quieter greys — so a band
@@ -120,4 +143,58 @@ export function MonthSections({
       ))}
     </div>
   );
+}
+
+/**
+ * Tells the caller which band the page is scrolled to.
+ *
+ * The header sits over this view and takes its colours from the year you are
+ * looking at, which in every other view is the month in the date control. Here
+ * there is no one month on screen — scrolling is what changes the year — so the
+ * band under the header is the answer, and it has to be recomputed as you move.
+ */
+function useReading(bands: YearBand[], onReading?: (monthKey: string) => void) {
+  const elements = useRef(new Map<string, HTMLElement>());
+  const last = useRef<string | null>(null);
+  const keys = bands.map((band) => band.groups[0].key).join(',');
+
+  useEffect(() => {
+    if (!onReading) return;
+
+    let frame = 0;
+    const look = () => {
+      frame = 0;
+      const boxes = [...elements.current.entries()]
+        .map(([key, el]) => {
+          const box = el.getBoundingClientRect();
+          return { key, top: box.top, bottom: box.bottom };
+        })
+        .sort((a, b) => a.top - b.top);
+
+      const key = bandAt(boxes);
+      if (key && key !== last.current) {
+        last.current = key;
+        onReading(key);
+      }
+    };
+
+    // coalesced to a frame: this runs on every pixel of a scroll
+    const queue = () => {
+      if (!frame) frame = requestAnimationFrame(look);
+    };
+
+    look();
+    window.addEventListener('scroll', queue, { passive: true });
+    window.addEventListener('resize', queue);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', queue);
+      window.removeEventListener('resize', queue);
+    };
+  }, [keys, onReading]);
+
+  return (key: string) => (el: HTMLElement | null) => {
+    if (el) elements.current.set(key, el);
+    else elements.current.delete(key);
+  };
 }
