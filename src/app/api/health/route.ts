@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { connectionString } from '@/lib/server/db';
-import { hasBlobStore } from '@/lib/server/blobs';
 
 /* One page that says whether this deployment can actually keep anything, and
    what to do about it if not. */
