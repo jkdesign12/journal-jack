@@ -49,6 +49,7 @@ export function SyncDrawer({
   const [error, setError] = useState('');
   const picker = useRef<HTMLInputElement>(null);
   const [dropping, setDropping] = useState(false);
+  const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch('/api/services')
@@ -135,12 +136,27 @@ export function SyncDrawer({
           {services.map((svc) => {
             const cfg = cfgFor(svc.id);
             return (
-              <section key={svc.id} className="flex flex-col gap-2 border-t border-line pt-4">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="text-[14px] font-medium">{svc.name}</h3>
-                  <span className="text-[10.5px] uppercase tracking-[0.1em] text-ink-3">{svc.tag}</span>
-                </div>
+              <section key={svc.id} className="overflow-hidden rounded-xl border border-line">
+                <button
+                  className="flex w-full items-center gap-2.5 bg-bg-2 px-3.5 py-3 text-left"
+                  aria-expanded={open === svc.id}
+                  onClick={() => setOpen(open === svc.id ? null : svc.id)}
+                >
+                  {/* green for a service that can hand over everything, amber
+                      for one that only reaches part of your history */}
+                  <span
+                    className={
+                      'h-2.5 w-2.5 flex-none rounded-full ' +
+                      (svc.access === 'full' ? 'bg-[#6fcf97]' : 'bg-[#f2c94c]')
+                    }
+                    title={svc.access === 'full' ? 'Full history' : svc.history}
+                  />
+                  <h3 className="flex-1 text-[13.5px] font-semibold">{svc.name}</h3>
+                  <span className="text-[10px] uppercase tracking-[0.08em] text-ink-3">{svc.tag}</span>
+                </button>
 
+                {open === svc.id ? (
+                <div className="flex flex-col gap-2.5 border-t border-line p-3.5">
                 <p className="text-[11.5px] leading-relaxed text-ink-3">{svc.note}</p>
 
                 {svc.fields.map((f) =>
@@ -217,6 +233,8 @@ export function SyncDrawer({
                       }}
                     />
                   </>
+                ) : null}
+                </div>
                 ) : null}
               </section>
             );

@@ -41,6 +41,7 @@ export function Player({
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(0);
+  const [volume, setVolume] = useState(0.85);
 
   useEffect(() => {
     let alive = true;
@@ -140,6 +141,23 @@ export function Player({
         </div>
       </div>
 
+      <label className="vol flex-none max-[640px]:hidden" title="Volume">
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={volume}
+          aria-label="Volume"
+          className="w-20 accent-[var(--accent)]"
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            setVolume(next);
+            if (audio.current) audio.current.volume = next;
+          }}
+        />
+      </label>
+
       <button
         className={
           'flex h-8 w-8 flex-none items-center justify-center rounded-[9px] text-[15px] ' +
@@ -182,7 +200,10 @@ export function Player({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setLength(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => {
+          setLength(e.currentTarget.duration);
+          e.currentTarget.volume = volume;
+        }}
         onEnded={() => {
           // one song, on repeat, is what a month's song is for
           if (store.view.autoplay) void audio.current?.play().catch(() => {});

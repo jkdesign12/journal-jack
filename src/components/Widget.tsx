@@ -123,6 +123,13 @@ export function WidgetBody({
               />
             </label>
           ))}
+
+          <button
+            className="mt-1 text-left text-[11.5px] text-ink-3 hover:text-accent"
+            onClick={() => write([...items, { t: '', done: false }])}
+          >
+            + add a line
+          </button>
         </div>
       );
     }

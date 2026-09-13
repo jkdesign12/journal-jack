@@ -58,9 +58,16 @@ export function AccountPanel({
   if (user) {
     return (
       <Popover onClose={onClose} title="Your account">
-        <p className="text-[12.5px] text-ink-2">
-          Signed in as <b className="text-ink">{user.email}</b>
-        </p>
+        <div className="flex items-center gap-3">
+          {/* your first initial, so the panel says whose journal this is at a
+              glance rather than making you read an address */}
+          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-accent font-serif text-[19px] text-[#141210]">
+            {user.email[0]?.toUpperCase() ?? '?'}
+          </span>
+          <p className="min-w-0 break-all text-[12.5px] text-ink-2">
+            Signed in as <b className="text-ink">{user.email}</b>
+          </p>
+        </div>
         <p className="text-[11.5px] leading-relaxed text-ink-3">
           Your journal lives on this device and is copied to the account, so it reaches your other
           devices. Nothing is replaced when they disagree — both sides are kept.

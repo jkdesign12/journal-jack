@@ -32,6 +32,9 @@ import { Menu, type MenuAction } from './Menu';
 import { SyncDrawer } from './SyncDrawer';
 import { Player } from './Player';
 import { Toasts, toast } from './Toasts';
+import { Banner } from './Banner';
+import { DropOverlay } from './DropOverlay';
+import { Empty } from './Empty';
 
 type Panel = 'months' | 'account' | 'tags' | 'media' | 'widgets' | 'colours' | 'menu' | 'sync' | null;
 
@@ -41,6 +44,8 @@ export function Journal() {
   const [panel, setPanel] = useState<Panel>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
   const jsonPicker = useRef<HTMLInputElement>(null);
   const dayPicker = useRef<HTMLInputElement>(null);
 
@@ -113,11 +118,28 @@ export function Journal() {
   useEffect(() => {
     if (!ready) return;
 
+    let depth = 0;
+
+    const enter = (e: DragEvent) => {
+      if (![...(e.dataTransfer?.types ?? [])].includes('Files')) return;
+      depth++;
+      setDropping(true);
+    };
+
+    const leave = () => {
+      if (--depth <= 0) {
+        depth = 0;
+        setDropping(false);
+      }
+    };
+
     const over = (e: DragEvent) => {
       if ([...(e.dataTransfer?.types ?? [])].includes('Files')) e.preventDefault();
     };
 
     const drop = async (e: DragEvent) => {
+      depth = 0;
+      setDropping(false);
       const files = [...(e.dataTransfer?.files ?? [])];
       if (!files.length) return;
       e.preventDefault();
@@ -143,9 +165,13 @@ export function Journal() {
       await take(files);
     };
 
+    window.addEventListener('dragenter', enter);
+    window.addEventListener('dragleave', leave);
     window.addEventListener('dragover', over);
     window.addEventListener('drop', drop);
     return () => {
+      window.removeEventListener('dragenter', enter);
+      window.removeEventListener('dragleave', leave);
       window.removeEventListener('dragover', over);
       window.removeEventListener('drop', drop);
     };
@@ -312,12 +338,7 @@ export function Journal() {
 
   return (
     <>
-      {store.degraded ? (
-        <div className="bg-[#7a2f2f] px-4 py-2 text-center text-[12.5px] text-white">
-          Storage is restricted in this browser, so uploaded files will not survive a reload. The
-          journal itself is still kept.
-        </div>
-      ) : null}
+      <Banner degraded={store.degraded} />
 
       <Header
         view={view}
@@ -489,10 +510,24 @@ export function Journal() {
             }}
             onChange={change}
             onRefuse={(message) => toast(message, true)}
+            selected={selected}
+            onSelect={setSelected}
+            onMeasured={(id, ratio) => {
+              const b = store.find(id);
+              if (!b || b.ratio === ratio) return;
+              b.ratio = ratio;
+              store.save();
+            }}
             renderWidget={(b) => (
               <WidgetBody block={b} onChange={change} stats={statsFor(month?.blocks ?? [])} />
             )}
-            empty={<Empty all={view.all} filtered={!!view.hiddenTags.length} onShowAll={() => store.setView({ hiddenTags: [] })} />}
+            empty={
+              <Empty
+                all={view.all}
+                filtered={!!view.hiddenTags.length}
+                onShowAll={() => store.setView({ hiddenTags: [] })}
+              />
+            }
           />
         ) : (
           <Calendar
@@ -544,6 +579,7 @@ export function Journal() {
         }}
       />
 
+      <DropOverlay over={dropping} />
       <Toasts />
     </>
   );
@@ -556,36 +592,4 @@ function statsFor(blocks: Block[]) {
     records: blocks.filter((b) => b.source === 'musicboard' || b.source === 'lastfm').length,
     photos: blocks.filter((b) => b.kind === 'photo').length,
   };
-}
-
-function Empty({
-  all,
-  filtered,
-  onShowAll,
-}: {
-  all: boolean;
-  filtered: boolean;
-  onShowAll: () => void;
-}) {
-  /* An empty board because of the filter is not an empty journal, and saying
-     "nothing here yet" when there is plenty would just be wrong. */
-  if (filtered) {
-    return (
-      <div className="text-center">
-        <b className="mb-2 block text-[15px]">Everything here is filtered out</b>
-        <button className="btn ghost" onClick={onShowAll}>
-          Show all tags
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="max-w-sm text-center">
-      <b className="mb-1 block text-[15px]">{all ? 'Nothing in the journal yet' : 'Nothing here yet'}</b>
-      <span className="text-[12.5px] text-ink-3">
-        Drop photos anywhere, add a widget, or pull a month from Letterboxd, AniList or Last.fm with
-        Sync.
-      </span>
-    </div>
-  );
 }
