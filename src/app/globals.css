@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tailwind answers `hover:` only where `(hover: hover)` matches. That is the
+   right default for a phone, but a laptop with a touchscreen also says
+   `hover: none` — and on one of those every hover style in this app went dead
+   at once: the tile tools, the buttons, the menu rows, the month arrows. You
+   could not tell which of three identical dark squares you were about to press.
+   Asking about the pointer rather than the device fixes all of them together. */
+@custom-variant hover (&:hover);
+
 /* The palette is CSS custom properties rather than Tailwind colours, because a
    year of the journal can set its own background and text colour at runtime.
    Everything else the interface needs — panels, borders, the quieter greys — is
