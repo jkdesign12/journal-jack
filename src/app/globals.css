@@ -88,25 +88,21 @@ body {
     height 0.18s ease;
 }
 
-/* No hover on a touch screen, so pressing a tile is what brings its details in. */
-@media (hover: hover) {
-  .tile .reveal {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .tile:hover .reveal {
-    opacity: 1;
-  }
+/* Nothing but the artwork until you point at it.
+ *
+ * Deliberately not asked behind `@media (hover: hover)`. A laptop with a
+ * touchscreen answers `hover: none`, and gating it that way meant hovering did
+ * nothing there and you had to press and hold — which is not how anybody reads
+ * a board with a mouse in their hand. So hover is the rule everywhere, and a
+ * press and a focus are additions for the places that have no hover. */
+.tile .reveal {
+  opacity: 0;
+  transition: opacity 0.16s ease;
 }
-
-@media (hover: none) {
-  .tile .reveal {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-  .tile:active .reveal {
-    opacity: 1;
-  }
+.tile:hover .reveal,
+.tile:active .reveal,
+.tile:focus-within .reveal {
+  opacity: 1;
 }
 
 /* The two shapes every panel is built from. Tailwind can express these inline,
@@ -183,12 +179,13 @@ body {
 .tile.is-card .poster-r {
   transition: opacity 0.16s ease;
 }
-@media (hover: hover) {
-  .tile.is-card:hover .poster-t,
-  .tile.is-card:hover .poster-s,
-  .tile.is-card:hover .poster-r {
-    opacity: 0;
-  }
+.tile.is-card:hover .poster-t,
+.tile.is-card:active .poster-t,
+.tile.is-card:hover .poster-s,
+.tile.is-card:active .poster-s,
+.tile.is-card:hover .poster-r,
+.tile.is-card:active .poster-r {
+  opacity: 0;
 }
 
 /* Selection and carrying. */
@@ -201,11 +198,9 @@ body {
   opacity: 0.85;
   box-shadow: 0 18px 40px rgb(0 0 0 / 0.45);
 }
-@media (hover: hover) {
-  .tile:hover {
-    outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-    outline-offset: -1px;
-  }
+.tile:hover {
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -1px;
 }
 
 /* While a tile is being carried, every other one steps back and the lanes it
