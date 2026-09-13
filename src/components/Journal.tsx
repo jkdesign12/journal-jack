@@ -19,6 +19,7 @@ import type { Block, ImportedItem, Song } from '@/lib/journal/types';
 
 import { Header } from './Header';
 import { Board } from './Board';
+import { MonthSections } from './MonthSections';
 import { Calendar } from './Calendar';
 import { MonthPicker } from './MonthPicker';
 import { AccountPanel } from './AccountPanel';
@@ -238,7 +239,9 @@ export function Journal() {
 
   const month = doc.months[view.cursor];
   const open = openId ? store.find(openId) : undefined;
-  const manual = effectiveSort(view.sort as SortMode, view.all) === 'manual';
+  const order = effectiveSort(view.sort as SortMode, view.all);
+  const manual = order === 'manual';
+  const byMonth = order === 'month';
 
   async function setSong(file: File) {
     const { DB } = await import('@/lib/client/db');
@@ -342,6 +345,7 @@ export function Journal() {
 
       <Header
         view={view}
+        order={order}
         span={journalSpan(doc)}
         signedIn={!!Account.user}
         busy={busy}
@@ -493,17 +497,17 @@ export function Journal() {
 
       <main className="px-5 pb-24 pt-4 max-[640px]:px-3">
         {view.view === 'grid' ? (
-          <Board
+          byMonth ? (
+          <MonthSections
             blocks={blocks}
-            manual={manual}
             onOpen={setOpenId}
             onRemove={(id) => store.remove(id)}
             onCycleSize={(id) => {
               const b = store.find(id);
               if (!b) return;
-              const order = ['sm', 'md', 'lg'] as const;
-              const at = order.indexOf((b.size as 'sm') ?? 'sm');
-              b.size = order[(at + 1) % order.length];
+              const sizes = ['sm', 'md', 'lg'] as const;
+              const at = sizes.indexOf((b.size as 'sm') ?? 'sm');
+              b.size = sizes[(at + 1) % sizes.length];
               delete b.uw; // back to the shape the content asks for
               delete b.uh;
               store.save();
@@ -529,6 +533,44 @@ export function Journal() {
               />
             }
           />
+          ) : (
+          <Board
+            blocks={blocks}
+            manual={manual}
+            onOpen={setOpenId}
+            onRemove={(id) => store.remove(id)}
+            onCycleSize={(id) => {
+              const b = store.find(id);
+              if (!b) return;
+              const sizes = ['sm', 'md', 'lg'] as const;
+              const at = sizes.indexOf((b.size as 'sm') ?? 'sm');
+              b.size = sizes[(at + 1) % sizes.length];
+              delete b.uw; // back to the shape the content asks for
+              delete b.uh;
+              store.save();
+            }}
+            onChange={change}
+            onRefuse={(message) => toast(message, true)}
+            selected={selected}
+            onSelect={setSelected}
+            onMeasured={(id, ratio) => {
+              const b = store.find(id);
+              if (!b || b.ratio === ratio) return;
+              b.ratio = ratio;
+              store.save();
+            }}
+            renderWidget={(b) => (
+              <WidgetBody block={b} onChange={change} stats={statsFor(month?.blocks ?? [])} />
+            )}
+            empty={
+              <Empty
+                all={view.all}
+                filtered={!!view.hiddenTags.length}
+                onShowAll={() => store.setView({ hiddenTags: [] })}
+              />
+            }
+          />
+          )
         ) : (
           <Calendar
             cursor={view.cursor}

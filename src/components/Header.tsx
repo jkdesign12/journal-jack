@@ -17,6 +17,7 @@ export const NOT_YET: readonly string[] = [];
 
 export function Header({
   view,
+  order,
   span,
   signedIn,
   busy,
@@ -35,6 +36,8 @@ export function Header({
   onResetLayout,
 }: {
   view: ViewState;
+  /** the order actually in force, which is not always the one stored */
+  order: SortMode;
   span: { first?: string; last?: string };
   signedIn: boolean;
   busy: boolean;
@@ -108,11 +111,11 @@ export function Header({
 
         <select
           className="rounded-[9px] border border-line bg-panel px-2.5 py-1.5 text-[12.5px] text-ink-2 outline-none hover:border-accent hover:text-ink"
-          value={view.sort}
+          value={order}
           onChange={(e) => onSort(e.target.value as SortMode)}
           title="Order"
         >
-          {SORT_MODES.map((mode) => (
+          {SORT_MODES.filter((mode) => mode !== 'month' || view.all).map((mode) => (
             <option key={mode} value={mode}>
               {SORT_LABELS[mode]}
             </option>

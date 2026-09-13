@@ -6,8 +6,9 @@
 
 import type { Block, JournalDoc } from './types';
 import { tagsOf } from './tags';
+import { MONTHS } from './dates';
 
-export const SORT_MODES = ['manual', 'date', '-date', '-rating', 'title', 'source'] as const;
+export const SORT_MODES = ['manual', 'date', '-date', '-rating', 'title', 'source', 'month'] as const;
 export type SortMode = (typeof SORT_MODES)[number];
 
 export const SORT_LABELS: Record<SortMode, string> = {
@@ -17,11 +18,12 @@ export const SORT_LABELS: Record<SortMode, string> = {
   '-rating': 'Highest rated',
   title: 'Title A–Z',
   source: 'By tag',
+  month: 'By month',
 };
 
 type Key = (b: Block) => string | number;
 
-export const SORTS: Record<Exclude<SortMode, 'manual'>, Key> = {
+export const SORTS: Record<Exclude<SortMode, 'manual' | 'month'>, Key> = {
   date: (b) => b.date || '9999-99',
   '-date': (b) => b.date || '0000-00',
   '-rating': (b) => (b.rating == null ? -1 : b.rating),
@@ -42,11 +44,18 @@ export const SORTS: Record<Exclude<SortMode, 'manual'>, Key> = {
  * nothing outside the month it belongs to — so the everything view is always
  * sorted, and "custom order" falls back to newest first while it is on.
  */
-export const effectiveSort = (mode: SortMode, allMonths: boolean): SortMode =>
-  allMonths && mode === 'manual' ? '-date' : mode;
+export const effectiveSort = (mode: SortMode, allMonths: boolean): SortMode => {
+  if (allMonths && mode === 'manual') return '-date';
+  /* Grouping by month is about reading the whole journal. Inside one month it
+     would be a single heading repeating the one already at the top. */
+  if (!allMonths && mode === 'month') return '-date';
+  return mode;
+};
 
 export function orderedBlocks(blocks: Block[], mode: SortMode): Block[] {
   if (mode === 'manual') return blocks;
+  // grouping draws its own sections; the flat list is simply chronological
+  if (mode === 'month') return orderedBlocks(blocks, 'date');
   const key = SORTS[mode];
   const dir = mode.startsWith('-') ? -1 : 1;
   return [...blocks].sort((a, b) => {
@@ -81,4 +90,45 @@ export function journalSpan(doc: JournalDoc): { first?: string; last?: string } 
   }
   years.sort();
   return { first: years[0], last: years[years.length - 1] };
+}
+
+export interface MonthGroup {
+  /** 'YYYY-MM', or '' for the things with no date */
+  key: string;
+  label: string;
+  blocks: Block[];
+}
+
+/**
+ * The whole journal as a run of months, each under its own heading.
+ *
+ * Reads forwards — oldest month first, and oldest first inside each one — so
+ * scrolling down is scrolling through time. Something with no date has no month
+ * to sit under, but hiding it would be worse than putting it at the end where
+ * it can be found and given one.
+ */
+export function groupByMonth(blocks: Block[]): MonthGroup[] {
+  const byMonth = new Map<string, Block[]>();
+
+  for (const b of blocks) {
+    const key = b.date ? b.date.slice(0, 7) : '';
+    const list = byMonth.get(key);
+    if (list) list.push(b);
+    else byMonth.set(key, [b]);
+  }
+
+  const dated = [...byMonth.keys()].filter(Boolean).sort();
+  const groups: MonthGroup[] = dated.map((key) => {
+    const [year, month] = key.split('-').map(Number);
+    return {
+      key,
+      label: `${MONTHS[month - 1]} ${year}`,
+      blocks: [...byMonth.get(key)!].sort((a, b) => (a.date ?? '').localeCompare(b.date ?? '')),
+    };
+  });
+
+  const loose = byMonth.get('');
+  if (loose?.length) groups.push({ key: '', label: 'No date', blocks: loose });
+
+  return groups;
 }
