@@ -1,13 +1,15 @@
 # your journal's own data on this machine: SQLite and uploaded files
 data/
 
-# build output and dependencies
+# dependencies and build output
 node_modules/
 .next/
 out/
+coverage/
+*.tsbuildinfo
 
-# local environment and host state
-.env*.local
+# environment and host state
+.env*
 .vercel
 
 # editor and OS noise
