@@ -1,19 +1,46 @@
 'use client';
 
 import type { Block } from '@/lib/journal/types';
-import { groupByMonth } from '@/lib/journal/sort';
+import { groupByMonth, type MonthGroup } from '@/lib/journal/sort';
 import { Board } from './Board';
 
 /**
- * The whole journal as a run of months, each under its own heading.
+ * A run of months of the same year, to be painted in that year's colours.
+ *
+ * Colours belong to the year rather than the month, so the band has to as well:
+ * twelve separately painted months of one year would read as twelve changes of
+ * paper rather than one year you are scrolling through.
+ */
+export interface YearBand {
+  year: string;
+  groups: MonthGroup[];
+}
+
+export function bandsOf(groups: MonthGroup[]): YearBand[] {
+  const bands: YearBand[] = [];
+  for (const group of groups) {
+    const year = group.key.slice(0, 4);
+    const last = bands.at(-1);
+    if (last && last.year === year) last.groups.push(group);
+    else bands.push({ year, groups: [group] });
+  }
+  return bands;
+}
+
+/**
+ * The whole journal as a run of months, each under its own heading, on the
+ * paper of the year it belongs to.
  *
  * One board per month rather than one long board: a month's tiles should pack
  * against each other and stop, so the gap before the next heading is real and
- * the sections cannot bleed into one another.
+ * the sections cannot bleed into one another. The colour, though, runs behind
+ * a whole year at once — the gaps between its months are part of the band, so
+ * scrolling a year is scrolling one sheet of paper rather than twelve.
  */
 export function MonthSections({
   blocks,
   home,
+  styleFor,
   onOpen,
   onRemove,
   onCycleSize,
@@ -28,6 +55,8 @@ export function MonthSections({
   blocks: Block[];
   /** Which month each block is filed under, for the ones carrying no date. */
   home?: Map<string, string>;
+  /** That month's custom properties — its year's colours, if it has any. */
+  styleFor?: (monthKey: string) => Record<string, string>;
   onOpen: (id: string) => void;
   onRemove: (id: string) => void;
   onCycleSize: (id: string) => void;
@@ -43,30 +72,51 @@ export function MonthSections({
   if (!groups.length) return <>{empty}</>;
 
   return (
-    <div className="flex flex-col gap-10">
-      {groups.map((group) => (
-        <section key={group.key || 'undated'}>
-          <h2 className="sticky top-[72px] z-20 mb-3 w-fit rounded-lg bg-bg/85 py-1.5 pr-3 font-serif text-[38px] font-semibold leading-none backdrop-blur-md max-[640px]:static max-[640px]:text-[29px]">
-            {group.label}
-            <span className="ml-3 align-middle text-[12px] font-sans font-medium tracking-[0.08em] text-ink-3">
-              {group.blocks.length}
-            </span>
-          </h2>
+    <div className="flex flex-col">
+      {bandsOf(groups).map((band) => (
+        <div
+          key={band.year || 'undated'}
+          data-year={band.year}
+          /* The year's own palette, set here rather than on the root element:
+             in this view several years are on screen at once. Everything inside
+             reads these — the tiles, the headings, the quieter greys — so a band
+             is coherent without any of them being told about the year. */
+          style={
+            {
+              ...styleFor?.(band.groups[0].key),
+              background: 'var(--bg)',
+              color: 'var(--ink)',
+            } as React.CSSProperties
+          }
+          /* Pulled out to the window's edges: a year is a sheet of paper the
+             journal is written on, not a card sitting on the page. */
+          className="-mx-5 flex flex-col gap-10 px-5 py-9 max-[640px]:-mx-3 max-[640px]:px-3 max-[640px]:py-7"
+        >
+          {band.groups.map((group) => (
+            <section key={group.key || 'undated'}>
+              <h2 className="sticky top-[72px] z-20 mb-3 w-fit rounded-lg bg-bg/85 py-1.5 pr-3 font-serif text-[38px] font-semibold leading-none backdrop-blur-md max-[640px]:static max-[640px]:text-[29px]">
+                {group.label}
+                <span className="ml-3 align-middle text-[12px] font-sans font-medium tracking-[0.08em] text-ink-3">
+                  {group.blocks.length}
+                </span>
+              </h2>
 
-          <Board
-            blocks={group.blocks}
-            manual={false}
-            onOpen={onOpen}
-            onRemove={onRemove}
-            onCycleSize={onCycleSize}
-            onChange={onChange}
-            onRefuse={onRefuse}
-            onMeasured={onMeasured}
-            selected={selected}
-            onSelect={onSelect}
-            renderWidget={renderWidget}
-          />
-        </section>
+              <Board
+                blocks={group.blocks}
+                manual={false}
+                onOpen={onOpen}
+                onRemove={onRemove}
+                onCycleSize={onCycleSize}
+                onChange={onChange}
+                onRefuse={onRefuse}
+                onMeasured={onMeasured}
+                selected={selected}
+                onSelect={onSelect}
+                renderWidget={renderWidget}
+              />
+            </section>
+          ))}
+        </div>
       ))}
     </div>
   );

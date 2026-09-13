@@ -34,8 +34,15 @@ const handlers = {
   onRefuse: vi.fn(),
 };
 
-const draw = (blocks: Block[], empty?: React.ReactNode, home?: Map<string, string>) =>
-  render(<MonthSections blocks={blocks} home={home} empty={empty} {...handlers} />);
+const draw = (
+  blocks: Block[],
+  empty?: React.ReactNode,
+  home?: Map<string, string>,
+  styleFor?: (monthKey: string) => Record<string, string>,
+) =>
+  render(
+    <MonthSections blocks={blocks} home={home} styleFor={styleFor} empty={empty} {...handlers} />,
+  );
 
 describe('the journal read by month', () => {
   it('gives each month a heading of its own', () => {
@@ -119,5 +126,52 @@ describe('the heading over each month', () => {
     const size = Number(heading.className.match(/text-\[(\d+)px\]/)?.[1]);
     expect(size).toBeGreaterThanOrEqual(34);
     expect(heading.className).toMatch(/font-(semibold|bold)/);
+  });
+});
+
+/* Colours belong to the year, so the paper does too: 2019 in green, 2020 in
+   blue, one unbroken band each, the gaps between a year's months included. */
+describe('a year, in its own colours', () => {
+  const palettes: Record<string, Record<string, string>> = {
+    '2019': { '--bg': '#9acd32', '--ink': '#102000' },
+    '2020': { '--bg': '#1e90ff', '--ink': '#001030' },
+  };
+  const styleFor = (monthKey: string) => palettes[monthKey.slice(0, 4)] ?? {};
+
+  const band = (year: string) => document.querySelector(`[data-year="${year}"]`) as HTMLElement;
+
+  it('paints each year in the colours that year was given', () => {
+    draw([film('a', '2019-03-02'), film('b', '2020-04-11')], undefined, undefined, styleFor);
+    expect(band('2019').style.getPropertyValue('--bg')).toBe('#9acd32');
+    expect(band('2020').style.getPropertyValue('--bg')).toBe('#1e90ff');
+  });
+
+  it('takes its text colour from the year as well', () => {
+    draw([film('a', '2019-03-02')], undefined, undefined, styleFor);
+    expect(band('2019').style.getPropertyValue('--ink')).toBe('#102000');
+    expect(band('2019').style.color).toBe('var(--ink)');
+    expect(band('2019').style.background).toBe('var(--bg)');
+  });
+
+  /* Twelve separately painted months would read as twelve changes of paper
+     rather than one year you are scrolling through. */
+  it('runs one band behind every month of the same year', () => {
+    draw(
+      [film('jan', '2019-01-02'), film('dec', '2019-12-20'), film('next', '2020-01-04')],
+      undefined,
+      undefined,
+      styleFor,
+    );
+    expect(document.querySelectorAll('[data-year]')).toHaveLength(2);
+    expect(within(band('2019')).getAllByRole('heading').map((h) => h.textContent)).toEqual([
+      expect.stringMatching(/January 2019/),
+      expect.stringMatching(/December 2019/),
+    ]);
+  });
+
+  it('leaves an uncoloured year on the default paper', () => {
+    draw([film('a', '2024-03-02')], undefined, undefined, styleFor);
+    expect(band('2024').style.getPropertyValue('--bg')).toBe('');
+    expect(band('2024').style.background).toBe('var(--bg)');
   });
 });

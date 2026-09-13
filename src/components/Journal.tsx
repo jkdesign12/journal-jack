@@ -508,6 +508,7 @@ export function Journal() {
           <MonthSections
             blocks={blocks}
             home={homeMonths(doc)}
+            styleFor={(monthKey) => monthStyle(doc, monthKey, view.theme)}
             onOpen={setOpenId}
             onRemove={(id) => store.remove(id)}
             onCycleSize={(id) => {
