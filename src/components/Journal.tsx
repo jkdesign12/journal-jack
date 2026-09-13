@@ -54,11 +54,24 @@ export function Journal() {
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
+  /* Which month's band the everything view is scrolled to. There is no single
+     month on screen there, so this is what the header and the page take their
+     colours from while it is on. */
+  const [reading, setReading] = useState<string | null>(null);
   const jsonPicker = useRef<HTMLInputElement>(null);
   const dayPicker = useRef<HTMLInputElement>(null);
 
   const { doc, view } = store;
   const change = useCallback(() => store.save(), [store]);
+
+  const order = effectiveSort(view.sort as SortMode, view.all);
+  const manual = order === 'manual';
+  const byMonth = order === 'month';
+
+  /* Scrolling is what changes the year in the month view, so the page follows
+     the band under the header rather than the month in the date control — which
+     is where it came in from and has nothing to do with what you are reading. */
+  const painted = byMonth && reading ? reading : view.cursor;
 
   /* The palette goes on the root element rather than on this component, because
      the scrim, the popovers and the browser's own theme colour all sit outside
@@ -68,12 +81,12 @@ export function Journal() {
     const root = document.documentElement;
     root.dataset.theme = view.theme;
 
-    const style = monthStyle(doc, view.cursor, view.theme);
+    const style = monthStyle(doc, painted, view.theme);
     for (const key of ['--bg', '--bg-2', '--panel', '--line', '--ink', '--ink-2', '--ink-3', '--tile-shadow']) {
       if (style[key]) root.style.setProperty(key, style[key]);
       else root.style.removeProperty(key);
     }
-  }, [ready, doc, view.cursor, view.theme, version]);
+  }, [ready, doc, painted, view.theme, version]);
 
   const runSync = useCallback(async () => {
     setBusy(true);
@@ -246,9 +259,6 @@ export function Journal() {
 
   const month = doc.months[view.cursor];
   const open = openId ? store.find(openId) : undefined;
-  const order = effectiveSort(view.sort as SortMode, view.all);
-  const manual = order === 'manual';
-  const byMonth = order === 'month';
 
   async function setSong(file: File) {
     const { DB } = await import('@/lib/client/db');
@@ -509,6 +519,7 @@ export function Journal() {
             blocks={blocks}
             home={homeMonths(doc)}
             styleFor={(monthKey) => monthStyle(doc, monthKey, view.theme)}
+            onReading={setReading}
             onOpen={setOpenId}
             onRemove={(id) => store.remove(id)}
             onCycleSize={(id) => {
