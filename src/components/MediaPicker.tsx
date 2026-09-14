@@ -2,17 +2,25 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from './Popover';
+import { TagField } from './TagField';
 
 export function MediaPicker({
   onClose,
   onFiles,
   onLink,
+  choices = [],
 }: {
   onClose: () => void;
-  onFiles: (files: FileList) => void;
-  onLink: (url: string) => boolean;
+  onFiles: (files: FileList, tags: string[]) => void;
+  onLink: (url: string, tags: string[]) => boolean;
+  /** tags already in the journal, to be offered rather than retyped */
+  choices?: string[];
 }) {
   const [link, setLink] = useState('');
+  /* Named before anything is chosen, because choosing files is the last thing
+     you do here — the file dialog closes the popup behind it. Twenty holiday
+     photos should not need twenty trips through the details panel. */
+  const [tags, setTags] = useState<string[]>([]);
   const [error, setError] = useState('');
   const picker = useRef<HTMLInputElement>(null);
   const field = useRef<HTMLInputElement>(null);
@@ -21,12 +29,19 @@ export function MediaPicker({
   useEffect(() => field.current?.focus(), []);
 
   const submit = () => {
-    if (onLink(link)) onClose();
+    if (onLink(link, tags)) onClose();
     else setError('That is not a web address');
   };
 
   return (
     <Popover title="Add media" onClose={onClose}>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[10.5px] uppercase tracking-[0.12em] text-ink-3">
+          Tags for what you add
+        </span>
+        <TagField tags={tags} choices={choices} onChange={setTags} listId="media-tag-choices" />
+      </div>
+
       <button className="btn" onClick={() => picker.current?.click()}>
         Choose from this computer
       </button>
@@ -38,7 +53,7 @@ export function MediaPicker({
         hidden
         onChange={(e) => {
           if (e.target.files?.length) {
-            onFiles(e.target.files);
+            onFiles(e.target.files, tags);
             onClose();
           }
         }}

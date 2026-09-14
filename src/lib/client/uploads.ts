@@ -5,6 +5,8 @@ import { Account } from './account';
 import { shrinkImage, UPLOAD_LIMIT } from './images';
 import { store } from './store';
 import { uid } from '@/lib/journal/uid';
+import { knownTags, setTags } from '@/lib/journal/tags';
+import { everyBlock } from '@/lib/journal/sort';
 import type { Block } from '@/lib/journal/types';
 
 export interface AddResult {
@@ -21,13 +23,21 @@ export interface AddResult {
  * on this device and the copy on the account are the same bytes and the
  * shrinking never has to happen twice. A Live Photo becomes a still, because a
  * still that syncs everywhere beats a clip that syncs nowhere.
+ *
+ * Tags named in the Add media popup go on every file in the batch: a holiday's
+ * worth of photos is one decision, not one decision each.
  */
-export async function addFiles(files: FileList | File[], day: number | null = null): Promise<AddResult> {
+export async function addFiles(
+  files: FileList | File[],
+  day: number | null = null,
+  tags: string[] = [],
+): Promise<AddResult> {
   const wanted = [...files].filter((f) => /^(image|video)\//.test(f.type));
   const result: AddResult = { added: 0, shrunk: 0, savedBytes: 0, stubborn: 0 };
   if (!wanted.length) return result;
 
   const blocks: Block[] = [];
+  const known = tags.length ? knownTags(everyBlock(store.doc)) : [];
   const month = store.view.all ? store.view.cursor : store.view.cursor;
   const date = day ? `${month}-${String(day).padStart(2, '0')}` : null;
 
@@ -43,7 +53,7 @@ export async function addFiles(files: FileList | File[], day: number | null = nu
     const blobId = uid();
     await DB.putBlob(blobId, file);
 
-    blocks.push({
+    const block: Block = {
       id: uid(),
       kind: 'photo',
       blobId,
@@ -55,7 +65,9 @@ export async function addFiles(files: FileList | File[], day: number | null = nu
       date,
       size: 'sm',
       rating: null,
-    });
+    };
+    if (tags.length) setTags(block, tags, known);
+    blocks.push(block);
   }
 
   store.add(blocks, month);
@@ -72,7 +84,7 @@ export async function addFiles(files: FileList | File[], day: number | null = nu
  * devices. The flip side is that if that page takes the image down, the tile
  * goes with it — a file from this computer is yours for good.
  */
-export function addImageByLink(raw: string): { ok: boolean; message: string } {
+export function addImageByLink(raw: string, tags: string[] = []): { ok: boolean; message: string } {
   const text = String(raw ?? '').trim();
   if (!text) return { ok: false, message: 'Nothing to add' };
 
@@ -90,21 +102,21 @@ export function addImageByLink(raw: string): { ok: boolean; message: string } {
   const host = url.hostname.replace(/^www\./, '');
   const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(last);
 
-  store.add([
-    {
-      id: uid(),
-      kind: 'photo',
-      src: url.href,
-      mime: isVideo ? 'video/mp4' : 'image/*',
-      title: last.replace(/\.[^.]+$/, '') || host,
-      subtitle: host,
-      note: '',
-      day: null,
-      date: null,
-      size: 'sm',
-      rating: null,
-    },
-  ]);
+  const block: Block = {
+    id: uid(),
+    kind: 'photo',
+    src: url.href,
+    mime: isVideo ? 'video/mp4' : 'image/*',
+    title: last.replace(/\.[^.]+$/, '') || host,
+    subtitle: host,
+    note: '',
+    day: null,
+    date: null,
+    size: 'sm',
+    rating: null,
+  };
+  if (tags.length) setTags(block, tags, knownTags(everyBlock(store.doc)));
+  store.add([block]);
 
   return { ok: true, message: `Added from ${host}` };
 }
