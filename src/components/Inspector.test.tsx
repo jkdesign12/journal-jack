@@ -27,8 +27,8 @@ const block = (over: Partial<Block> = {}): Block => ({
 
 function setup(b: Block) {
   const handlers = { onClose: vi.fn(), onChange: vi.fn(), onRemove: vi.fn(), onMoved: vi.fn() };
-  render(<Inspector block={b} {...handlers} />);
-  return { user: userEvent.setup(), block: b, ...handlers };
+  const view = render(<Inspector block={b} {...handlers} />);
+  return { user: userEvent.setup(), block: b, ...view, ...handlers };
 }
 
 beforeEach(() => {
@@ -137,5 +137,60 @@ describe('the details panel', () => {
     await user.click(screen.getByRole('button', { name: 'No date' }));
     expect(b.date).toBeNull();
     expect(b.day).toBeNull();
+  });
+});
+
+/* A URL you type in is the cover you want. The app used to keep looking one up
+   behind you and put its own back, so the same album could be re-covered every
+   sweep and you could never make it stick. */
+describe('a cover you choose yourself', () => {
+  const poster = () => screen.getByPlaceholderText('https://…/poster.jpg');
+
+  it('goes onto the block as you leave the field', () => {
+    const { block: b } = setup(block({ source: 'musicboard', src: 'https://found/cover.jpg' }));
+    fireEvent.blur(poster(), { target: { value: ' https://mine/for-you.jpg ' } });
+    expect(b.src).toBe('https://mine/for-you.jpg');
+  });
+
+  it('is marked as yours, so nothing goes looking for another one', () => {
+    const { block: b } = setup(block({ source: 'musicboard' }));
+    fireEvent.blur(poster(), { target: { value: 'https://mine/for-you.jpg' } });
+    expect(b.srcByHand).toBe(true);
+  });
+
+  /* Emptying the field is asking for one to be found again. */
+  it('hands the job back when you clear it', () => {
+    const { block: b } = setup(block({ src: 'https://mine/for-you.jpg', srcByHand: true }));
+    fireEvent.blur(poster(), { target: { value: '' } });
+    expect(b.src).toBe('');
+    expect(b.srcByHand).toBeFalsy();
+  });
+
+  it('forgets the measured shape, since the new picture has its own', () => {
+    const { block: b } = setup(block({ ratio: 1.5 }));
+    fireEvent.blur(poster(), { target: { value: 'https://mine/for-you.jpg' } });
+    expect(b.ratio).toBeUndefined();
+  });
+});
+
+/* Closing on Escape never blurs the field, so the URL just typed went nowhere
+   and the old cover came back — which looks exactly like the app overruling
+   you. What is in the box when the panel goes is what you meant. */
+describe('a cover typed and then closed', () => {
+  it('is kept when the panel closes without the field being left', () => {
+    const { block: b, unmount } = setup(block({ source: 'musicboard' }));
+    fireEvent.change(screen.getByPlaceholderText('https://…/poster.jpg'), {
+      target: { value: 'https://mine/for-you.jpg' },
+    });
+    unmount();
+    expect(b.src).toBe('https://mine/for-you.jpg');
+    expect(b.srcByHand).toBe(true);
+  });
+
+  it('leaves the block alone when the field was not touched', () => {
+    const { block: b, unmount } = setup(block({ src: 'https://found/cover.jpg' }));
+    unmount();
+    expect(b.src).toBe('https://found/cover.jpg');
+    expect(b.srcByHand).toBeUndefined();
   });
 });

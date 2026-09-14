@@ -45,6 +45,8 @@ export interface Block {
 
   /** a picture: either a URL (imports, links) or a file held locally */
   src?: string;
+  /** the cover was typed in by hand, so nothing may go looking for another */
+  srcByHand?: boolean;
   blobId?: string;
   mime?: string;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Popover } from './Popover';
 import { store } from '@/lib/client/store';
 import { srcFor } from '@/lib/client/media';
@@ -40,6 +40,30 @@ export function Inspector({
     Object.assign(block, patch);
     onChange();
   };
+
+  /* A cover you type in is the one you want, so it is marked as yours and the
+     lookups stop trying to find another. Emptying the field hands that job
+     back. The measured shape goes with the old picture. */
+  const poster = useRef<HTMLInputElement>(null);
+  const setPoster = (url: string) => {
+    edit({ src: url, ratio: undefined, srcByHand: url ? true : undefined });
+  };
+
+  /* Escape closes the panel without the field ever blurring, and what you had
+     just typed went with it — which reads as the app overruling your URL. What
+     is in the box when the panel goes is what you meant. */
+  useEffect(
+    () => {
+      // held from here: React has already let go of the ref by the time a
+      // cleanup runs, so reading it then finds nothing
+      const el = poster.current;
+      return () => {
+        if (el && el.value.trim() !== (block.src ?? '')) setPoster(el.value.trim());
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   const tags = tagsOf(block);
   const choices = knownTags(everyBlock(store.doc));
@@ -178,13 +202,24 @@ export function Inspector({
 
           {block.kind === 'media' ? (
             <Field label="Poster URL">
-              {/* when a lookup picks the wrong film, or you want a specific one */}
+              {/* When a lookup picks the wrong film, or you want a specific one.
+                  Typing one marks it as yours and the lookups leave it alone —
+                  emptying the field is how you ask for one to be found again. */}
               <input
+                ref={poster}
                 className="field"
                 defaultValue={block.src ?? ''}
                 placeholder="https://…/poster.jpg"
-                onBlur={(e) => edit({ src: e.target.value.trim(), ratio: undefined })}
+                onBlur={(e) => setPoster(e.target.value.trim())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setPoster(e.currentTarget.value.trim());
+                }}
               />
+              {block.srcByHand ? (
+                <p className="mt-1.5 text-[11px] text-ink-3">
+                  Yours — nothing will look up another one. Clear it to go back to finding one.
+                </p>
+              ) : null}
             </Field>
           ) : null}
         </>

@@ -37,10 +37,15 @@ export function artworkQuery(b: Block) {
  * A music block wearing an image from a film CDN got it from the film cascade —
  * the "Evangelion single with a comedy poster" case — so drop it and look the
  * album up properly.
+ *
+ * A cover you typed in yourself is never touched, whatever host it is on.
+ * Judging one by its host threw a chosen cover away on every sweep and let the
+ * lookup put its own back, so an album could be re-covered forever.
  */
 export function repairWrongCovers(blocks: Block[]): number {
   let repaired = 0;
   for (const b of blocks) {
+    if (b.srcByHand) continue; // a cover you typed in is the one you want
     if (MUSIC_SOURCES.has(b.source ?? '') && /media-amazon\.com|upload\.wikimedia\.org/.test(b.src ?? '')) {
       b.src = '';
       repaired++;
@@ -70,7 +75,8 @@ export async function fillArtwork(): Promise<ArtworkRun> {
     result.repaired = repairWrongCovers(all);
     if (result.repaired) store.save();
 
-    const missing = all.filter((b) => b.kind === 'media' && !b.src && b.title);
+    // a cover you chose is the end of it, even if you chose to have none
+    const missing = all.filter((b) => b.kind === 'media' && !b.src && !b.srcByHand && b.title);
     result.missing = missing.length;
     if (!missing.length) return result;
 
