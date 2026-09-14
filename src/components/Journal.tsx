@@ -21,7 +21,7 @@ import {
   orderedBlocks,
   type SortMode,
 } from '@/lib/journal/sort';
-import { hiddenTagSet, tagVisible } from '@/lib/journal/tags';
+import { hiddenTagSet, knownTags, tagVisible } from '@/lib/journal/tags';
 import type { Block, ImportedItem, Song } from '@/lib/journal/types';
 
 import { Header } from './Header';
@@ -126,8 +126,8 @@ export function Journal() {
   }, [ready, runSync, runArtwork]);
 
   const take = useCallback(
-    async (files: FileList | File[], day: number | null = null) => {
-      const result = await addFiles(files, day);
+    async (files: FileList | File[], day: number | null = null, tags: string[] = []) => {
+      const result = await addFiles(files, day, tags);
       if (result.added) toast(describeAdd(result));
       void runArtwork();
     },
@@ -457,9 +457,10 @@ export function Journal() {
       {panel === 'media' ? (
         <MediaPicker
           onClose={() => setPanel(null)}
-          onFiles={(files) => void take(files)}
-          onLink={(url) => {
-            const res = addImageByLink(url);
+          choices={knownTags(everyBlock(doc))}
+          onFiles={(files, tags) => void take(files, null, tags)}
+          onLink={(url, tags) => {
+            const res = addImageByLink(url, tags);
             toast(res.message, !res.ok);
             return res.ok;
           }}

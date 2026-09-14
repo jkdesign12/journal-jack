@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Popover } from './Popover';
+import { TagField } from './TagField';
 import { store } from '@/lib/client/store';
 import { srcFor } from '@/lib/client/media';
 import { knownTags, setTags, tagsOf } from '@/lib/journal/tags';
@@ -26,7 +27,6 @@ export function Inspector({
   onMoved: (message: string) => void;
 }) {
   const [preview, setPreview] = useState<string | null>(null);
-  const [draftTag, setDraftTag] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -70,15 +70,7 @@ export function Inspector({
 
   const commitTags = (next: string[]) => {
     setTags(block, next, choices);
-    setDraftTag('');
     onChange();
-  };
-
-  const addTyped = () => {
-    const typed = draftTag.trim();
-    if (!typed) return;
-    // one box, several tags: "movie, rewatch" adds both
-    commitTags([...tags, ...typed.split(',')]);
   };
 
   /* Dating a block is also filing it: a photo uploaded in September but taken
@@ -121,53 +113,7 @@ export function Inspector({
           </Field>
 
           <Field label="Tags">
-            <div className="flex flex-col gap-2">
-              {tags.length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-bg-2 py-1 pl-3 pr-1.5 text-[11.5px] text-ink-2"
-                    >
-                      {t}
-                      <button
-                        className="flex h-[15px] w-[15px] items-center justify-center rounded-full text-[9px] text-ink-3 hover:bg-[#e2725b] hover:text-white"
-                        title={`Remove ${t}`}
-                        onClick={() => commitTags(tags.filter((x) => x !== t))}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-
-              <input
-                className="field"
-                list="tag-choices"
-                spellCheck={false}
-                placeholder={tags.length ? 'Add another…' : 'Movie, Book, Game…'}
-                value={draftTag}
-                onChange={(e) => setDraftTag(e.target.value)}
-                onBlur={addTyped}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addTyped();
-                  }
-                  // backspace in an empty box takes the last chip off
-                  if (e.key === 'Backspace' && !draftTag && tags.length) {
-                    e.preventDefault();
-                    commitTags(tags.slice(0, -1));
-                  }
-                }}
-              />
-              <datalist id="tag-choices">
-                {choices.map((t) => (
-                  <option key={t} value={t} />
-                ))}
-              </datalist>
-            </div>
+            <TagField tags={tags} choices={choices} onChange={commitTags} />
           </Field>
         </>
       ) : null}
